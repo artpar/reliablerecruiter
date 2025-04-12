@@ -1,5 +1,6 @@
 import * as Papa from 'papaparse';
 import * as XLSX from 'xlsx';
+import * as pdfjs from 'pdfjs-dist';
 
 export interface CSVData {
   data: Record<string, any>[];
@@ -14,17 +15,17 @@ export const processCSV = (content: string | ArrayBuffer): Promise<CSVData> => {
   return new Promise((resolve, reject) => {
     try {
       // Convert ArrayBuffer to string if needed
-      const csvString = typeof content === 'string' 
-        ? content 
+      const csvString = typeof content === 'string'
+        ? content
         : new TextDecoder('utf-8').decode(content);
-      
+
       Papa.parse(csvString, {
         header: true,
         dynamicTyping: true,
         skipEmptyLines: true,
         complete: (results) => {
           const headers = results.meta.fields || [];
-          
+
           resolve({
             data: results.data as Record<string, any>[],
             headers,
@@ -53,32 +54,32 @@ export const processExcel = (content: ArrayBuffer): Promise<Record<string, CSVDa
         cellDates: true,
         cellStyles: true,
       });
-      
+
       const result: Record<string, CSVData> = {};
-      
+
       // Process each sheet
       workbook.SheetNames.forEach((sheetName) => {
         const worksheet = workbook.Sheets[sheetName];
-        
+
         // Convert to CSV
         const csvString = XLSX.utils.sheet_to_csv(worksheet);
-        
+
         // Parse CSV data
         const parsedData = Papa.parse(csvString, {
           header: true,
           dynamicTyping: true,
           skipEmptyLines: true,
         });
-        
+
         const headers = parsedData.meta.fields || [];
-        
+
         result[sheetName] = {
           data: parsedData.data as Record<string, any>[],
           headers,
           rawData: csvString,
         };
       });
-      
+
       resolve(result);
     } catch (error) {
       reject(error);
@@ -87,11 +88,41 @@ export const processExcel = (content: ArrayBuffer): Promise<Record<string, CSVDa
 };
 
 /**
- * Extract text from a PDF file (placeholder - would require PDF.js or similar)
+ * Extract text from a PDF file using PDF.js
  */
-export const processPDF = (content: ArrayBuffer): Promise<string> => {
-  // This is a placeholder - in a real app you would use PDF.js or a similar library
-  return Promise.resolve('PDF content extraction not implemented');
+export const processPDF = async (content: ArrayBuffer): Promise<string> => {
+  try {
+    // Import PDF.js
+
+    // Set the worker source to use a web worker from the public directory
+    // For this to work, you need to copy the worker file to your public directory
+    // during build or manually
+    pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+
+    // Load the PDF document
+    const loadingTask = pdfjs.getDocument({ data: new Uint8Array(content) });
+    const pdf = await loadingTask.promise;
+
+    let fullText = '';
+
+    // Iterate through each page to extract text
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+
+      // Extract text from the page
+      const pageText = textContent.items
+        .map((item: any) => item.str)
+        .join(' ');
+
+      fullText += pageText + '\n';
+    }
+
+    return fullText.trim();
+  } catch (error) {
+    console.error('Error processing PDF:', error);
+    throw new Error(`Failed to process PDF: ${error instanceof Error ? error.message : String(error)}`);
+  }
 };
 
 /**
@@ -99,10 +130,10 @@ export const processPDF = (content: ArrayBuffer): Promise<string> => {
  */
 export const processText = (content: string | ArrayBuffer): Promise<string> => {
   return new Promise((resolve) => {
-    const text = typeof content === 'string' 
-      ? content 
+    const text = typeof content === 'string'
+      ? content
       : new TextDecoder('utf-8').decode(content);
-    
+
     resolve(text);
   });
 };
@@ -122,7 +153,7 @@ export const processFile = async (
   fileName: string
 ): Promise<any> => {
   const extension = getFileExtension(fileName);
-  
+
   switch (extension) {
     case 'csv':
       return processCSV(content);
