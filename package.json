@@ -30,7 +30,8 @@
   },
   "scripts": {
     "start": "vite",
-    "build": "tsc && vite build",
+    "build": "npm run build:worker && tsc && vite build",
+    "build:worker": "node build-worker.js",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"

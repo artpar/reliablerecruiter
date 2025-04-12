@@ -2,9 +2,9 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tsconfigPaths from 'vite-tsconfig-paths';
 import { VitePWA, VitePWAOptions } from 'vite-plugin-pwa';
+import { resolve } from 'path';
 
-
-const pwaOptions: Partial<VitePWAOptions> = {
+const pwaOptions = {
   registerType: 'autoUpdate',
   includeAssets: ['favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
   manifest: {
@@ -78,6 +78,7 @@ const pwaOptions: Partial<VitePWAOptions> = {
   }
 };
 
+
 export default defineConfig({
   plugins: [react(), tsconfigPaths(), VitePWA(pwaOptions)],
   css: {
@@ -92,31 +93,26 @@ export default defineConfig({
       }
     }
   },
+
   build: {
     sourcemap: true,
     rollupOptions: {
       input: {
         main: './index.html',
-        pdfWorker: './src/workers/pdfWorker.js'
       },
       output: {
         manualChunks: {
           'pdf-lib': ['pdfjs-dist']
         },
-        // Ensure worker files are placed in the assets/workers directory
+        // Place worker files in a dedicated directory
         assetFileNames: (assetInfo) => {
           if (assetInfo.name && assetInfo.name.includes('worker')) {
             return 'assets/workers/[name][extname]';
           }
           return 'assets/[name]-[hash][extname]';
         },
-        // Ensure chunks are properly named and placed
-        chunkFileNames: (chunkInfo) => {
-          if (chunkInfo.name && chunkInfo.name.includes('worker')) {
-            return 'assets/workers/[name]-[hash].js';
-          }
-          return 'assets/[name]-[hash].js';
-        }
+        chunkFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js',
       }
     }
   },
@@ -126,7 +122,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      // Add any aliases if needed
+      '@': resolve(__dirname, 'src'),
     }
   }
 });
