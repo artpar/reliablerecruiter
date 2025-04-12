@@ -24,12 +24,12 @@ const Navbar: React.FC = () => {
   };
 
   return (
-    <nav className="bg-white border-b border-neutral-200">
+    <nav className="bg-white dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
-              <Link to="/" className="text-2xl font-bold text-primary-600 flex items-center">
+              <Link to="/" className="text-2xl font-bold text-primary-600 dark:text-primary-400 flex items-center">
                 <img src="/logo144.png" className="h-10 w-auto mr-2" alt="ReliableRecruiter.Space Logo"/>
                 <span className="hidden md:block">ReliableRecruiter.Space</span>
               </Link>
@@ -40,7 +40,7 @@ const Navbar: React.FC = () => {
             <button
               type="button"
               onClick={toggleTheme}
-              className="p-2 rounded-full text-neutral-500 hover:text-neutral-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+              className="p-2 rounded-full text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:focus:ring-offset-neutral-800"
             >
               {userState.preferences.theme === 'light' ? (
                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -59,7 +59,7 @@ const Navbar: React.FC = () => {
             <button
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="inline-flex items-center justify-center p-2 rounded-md text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500"
+              className="inline-flex items-center justify-center p-2 rounded-md text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500"
               aria-expanded="false"
             >
               <span className="sr-only">Open main menu</span>
@@ -79,14 +79,14 @@ const Navbar: React.FC = () => {
 
       {/* Mobile menu */}
       {mobileMenuOpen && (
-        <div className="sm:hidden">
+        <div className="sm:hidden dark:bg-neutral-800">
           <div className="pt-2 pb-3 space-y-1">
             <Link
               to="/"
               className={`${
                 location.pathname === '/'
-                  ? 'bg-primary-50 border-primary-500 text-primary-700'
-                  : 'border-transparent text-neutral-600 hover:bg-neutral-50 hover:border-neutral-300 hover:text-neutral-800'
+                  ? 'bg-primary-50 dark:bg-primary-900/30 border-primary-500 text-primary-700 dark:text-primary-400'
+                  : 'border-transparent text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600 hover:text-neutral-800 dark:hover:text-neutral-100'
               } block pl-3 pr-4 py-2 border-l-4 text-base font-medium`}
               onClick={() => setMobileMenuOpen(false)}
             >
@@ -97,8 +97,8 @@ const Navbar: React.FC = () => {
                 type="button"
                 className={`${
                   location.pathname.startsWith('/tools')
-                    ? 'bg-primary-50 border-primary-500 text-primary-700'
-                    : 'border-transparent text-neutral-600 hover:bg-neutral-50 hover:border-neutral-300 hover:text-neutral-800'
+                    ? 'bg-primary-50 dark:bg-primary-900/30 border-primary-500 text-primary-700 dark:text-primary-400'
+                    : 'border-transparent text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600 hover:text-neutral-800 dark:hover:text-neutral-100'
                 } w-full flex items-center justify-between pl-3 pr-4 py-2 border-l-4 text-base font-medium`}
                 onClick={() => setToolsMenuOpen(!toolsMenuOpen)}
               >
@@ -121,8 +121,8 @@ const Navbar: React.FC = () => {
                       to={tool.path}
                       className={`${
                         location.pathname === tool.path
-                          ? 'bg-primary-50 text-primary-700'
-                          : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-800'
+                          ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400'
+                          : 'text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-700 hover:text-neutral-800 dark:hover:text-neutral-100'
                       } block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium`}
                       onClick={() => handleToolClick(tool.id)}
                     >
@@ -135,12 +135,12 @@ const Navbar: React.FC = () => {
           </div>
 
           {/* Mobile theme toggle */}
-          <div className="pt-4 pb-3 border-t border-neutral-200">
+          <div className="pt-4 pb-3 border-t border-neutral-200 dark:border-neutral-700">
             <div className="flex items-center px-4">
               <button
                 type="button"
                 onClick={toggleTheme}
-                className="ml-auto p-2 rounded-full text-neutral-500 hover:text-neutral-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                className="ml-auto p-2 rounded-full text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:focus:ring-offset-neutral-800"
               >
                 {userState.preferences.theme === 'light' ? (
                   <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">

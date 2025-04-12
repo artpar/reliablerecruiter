@@ -13,8 +13,16 @@ const Layout: React.FC = () => {
   const { state: appState, dispatch } = useApp();
   const { sidebarCollapsed } = userState.preferences;
 
-  // Update document body with theme class
+  // Update document HTML element with theme class
   useEffect(() => {
+    // Apply dark class to html element for Tailwind dark mode
+    if (userState.preferences.theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    
+    // Also update body with appropriate background and text colors
     document.body.className = userState.preferences.theme === 'dark'
       ? 'bg-neutral-900 text-white'
       : 'bg-neutral-50 text-neutral-800';
@@ -53,7 +61,7 @@ const Layout: React.FC = () => {
   }, [appState.toast.show, dispatch]);
 
   return (
-    <div className={`min-h-screen flex flex-col ${userState.preferences.theme === 'dark' ? 'dark' : ''}`}>
+    <div className="min-h-screen flex flex-col">
       <Navbar />
 
       <div className="flex-1 flex overflow-hidden">
