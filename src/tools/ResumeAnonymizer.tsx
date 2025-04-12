@@ -29,7 +29,7 @@ export interface AnonymizationSettings {
 }
 
 const ResumeAnonymizer: React.FC = () => {
-    const {state} = useFile();
+    const {files} = useFile();
     const {showToast} = useToast();
 
     const [uploadedFiles, setUploadedFiles] = useState<FileInfo[]>([]);
@@ -45,26 +45,23 @@ const ResumeAnonymizer: React.FC = () => {
 
     // Update uploaded files when files context changes
     useEffect(() => {
-        console.log("Files in context:", state.files);
-        if (!state.files || Object.keys(state.files).length === 0) {
+        console.log("Files in context:", files);
+        if (!files || files.length === 0) {
             return;
         }
-        const fileArray = Object.values(state.files);
-        console.log("Setting uploaded files:", fileArray);
-        setUploadedFiles(fileArray);
-    }, [state.files]);
+        console.log("Setting uploaded files:", files);
+        setUploadedFiles(files);
+    }, [files]);
 
     // Process all uploaded files
     const processResumes = async () => {
         // Get the latest files from context to ensure we have all uploaded files
-        const currentFiles = Object.values(state.files);
+        const currentFiles = files;
         console.log("Processing resumes", currentFiles);
         
         if (currentFiles.length === 0) {
             // Only show the warning if we're not in the middle of an upload
-            if (!state.isProcessing) {
-                showToast('Please upload at least one resume to anonymize', 'warning');
-            }
+            showToast('Please upload at least one resume to anonymize', 'warning');
             return;
         }
         
@@ -177,7 +174,7 @@ const ResumeAnonymizer: React.FC = () => {
             uploadedFiles={uploadedFiles}
             onProcess={() => {
                 // Only process if we have files
-                if (Object.values(state.files).length > 0 || uploadedFiles.length > 0) {
+                if (files.length > 0 || uploadedFiles.length > 0) {
                     processResumes();
                 }
             }}
