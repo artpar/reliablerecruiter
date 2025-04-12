@@ -49,7 +49,8 @@ const JDChecker: React.FC = () => {
 
         try {
             // Analyze the job description
-            const results = AnalysisService.analyzeBiasedLanguage(text);
+            const results = await AnalysisService.analyzeBiasedLanguage(text);
+            console.log("Analyzing language: ", results);
             setAnalysisResults(results);
 
             // Auto-generate improved version

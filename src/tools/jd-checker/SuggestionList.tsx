@@ -91,12 +91,9 @@ const SuggestionList: React.FC<SuggestionListProps> = ({
               </span>
               <div className="mt-2 font-medium">{term.term}</div>
               <div className="mt-1 text-sm text-neutral-500">
-                <span className="font-medium">Context:</span>{' '}
+                <span className="font-medium"></span>{' '}
                 <span className="italic">
-                  {getContext(originalText, term.index).replace(
-                    term.term,
-                    `<mark>${term.term}</mark>`
-                  )}
+                  {term.context}
                 </span>
               </div>
             </div>
