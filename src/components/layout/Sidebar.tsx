@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useUser } from '../../context/UserContext';
 import { useApp } from '../../context/AppContext';
 import {ToolsData} from "../tools/ToolsData";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 
 
 // Simple icon component based on icon name
@@ -96,23 +97,6 @@ const Sidebar: React.FC = () => {
     return (
         <div className={`bg-white border-r border-neutral-200 transition-all duration-300 ease-in-out ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
             <div className="flex flex-col h-full">
-                <div className="flex items-center justify-between h-16 px-4 border-b border-neutral-200">
-                    <button
-                        type="button"
-                        onClick={toggleSidebar}
-                        className="p-2 rounded-md text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    >
-                        {sidebarCollapsed ? (
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                            </svg>
-                        ) : (
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-                            </svg>
-                        )}
-                    </button>
-                </div>
 
                 <div className="flex-1 overflow-y-auto py-4">
                     <nav className="px-2 space-y-1">
@@ -130,7 +114,7 @@ const Sidebar: React.FC = () => {
                                 <div className={`${
                                     location.pathname === tool.path ? 'text-primary-500' : 'text-neutral-400 group-hover:text-neutral-500'
                                 } mr-3 flex-shrink-0`}>
-                                    <Icon name={tool.icon} />
+                                    <FontAwesomeIcon icon={tool.icon} />
                                 </div>
                                 {!sidebarCollapsed && (
                                     <span className="truncate">{tool.name}</span>
