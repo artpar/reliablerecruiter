@@ -112,7 +112,7 @@ const Sidebar: React.FC = () => {
                                 onClick={() => handleToolClick(tool.id)}
                             >
                                 <div className={`${
-                                    location.pathname === tool.path ? 'text-primary-500 dark:text-primary-400' : 'text-neutral-400 dark:text-neutral-500 group-hover:text-neutral-500 dark:group-hover:text-neutral-300'
+                                    location.pathname === tool.path ? 'text-primary-500 dark:text-primary-400' : 'text-neutral-400 dark:text-neutral-400 group-hover:text-neutral-400 dark:group-hover:text-neutral-300'
                                 } mr-3 flex-shrink-0`}>
                                     <FontAwesomeIcon icon={tool.icon} />
                                 </div>
@@ -126,7 +126,7 @@ const Sidebar: React.FC = () => {
 
                 {!sidebarCollapsed && userState.preferences.recentTools.length > 0 && (
                     <div className="px-3 py-4 border-t border-neutral-200 dark:border-neutral-700">
-                        <h3 className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
+                        <h3 className="text-xs font-semibold text-neutral-400 dark:text-neutral-400 uppercase tracking-wider">
                             Recent Tools
                         </h3>
                         <nav className="mt-2 space-y-1">
@@ -141,7 +141,7 @@ const Sidebar: React.FC = () => {
                                         className="group flex items-center px-2 py-2 text-sm font-medium rounded-md  dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-700 hover:text-neutral-900 dark:hover:text-neutral-100"
                                         onClick={() => handleToolClick(tool.id)}
                                     >
-                                        <div className="text-neutral-400 dark:text-neutral-500 group-hover:text-neutral-500 dark:group-hover:text-neutral-300 mr-3 flex-shrink-0">
+                                        <div className="text-neutral-400 dark:text-neutral-400 group-hover:text-neutral-400 dark:group-hover:text-neutral-300 mr-3 flex-shrink-0">
                                             <Icon name={tool.icon} />
                                         </div>
                                         <span className="truncate">{tool.name}</span>

@@ -79,17 +79,17 @@ const BiasVisualizer = ({ biasedTerms }) => {
                                     <span className="text-sm">
                     <span className="font-medium">{item.name}:</span> {item.value} term{item.value !== 1 ? 's' : ''}
                                         {item.name === 'Gender' && (
-                                            <span className="ml-1 text-xs text-neutral-500">
+                                            <span className="ml-1 text-xs text-neutral-400">
                         (e.g., rockstar, ninja, guys)
                       </span>
                                         )}
                                         {item.name === 'Age' && (
-                                            <span className="ml-1 text-xs text-neutral-500">
+                                            <span className="ml-1 text-xs text-neutral-400">
                         (e.g., young, energetic, seasoned)
                       </span>
                                         )}
                                         {item.name === 'Race' && (
-                                            <span className="ml-1 text-xs text-neutral-500">
+                                            <span className="ml-1 text-xs text-neutral-400">
                         (e.g., cultural fit, articulate)
                       </span>
                                         )}

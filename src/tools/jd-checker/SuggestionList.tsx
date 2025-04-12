@@ -90,7 +90,7 @@ const SuggestionList: React.FC<SuggestionListProps> = ({
                 {getCategoryLabel(term.category)}
               </span>
               <div className="mt-2 font-medium">{term.term}</div>
-              <div className="mt-1 text-sm text-neutral-500">
+              <div className="mt-1 text-sm text-neutral-400">
                 <span className="font-medium"></span>{' '}
                 <span className="italic">
                   {term.context}
@@ -117,7 +117,7 @@ const SuggestionList: React.FC<SuggestionListProps> = ({
               </div>
             </div>
           ) : (
-            <div className="mt-3 text-sm text-neutral-500 italic">
+            <div className="mt-3 text-sm text-neutral-400 italic">
               No specific alternatives available. Consider rephrasing this term.
             </div>
           )}

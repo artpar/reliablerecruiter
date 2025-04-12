@@ -37,7 +37,7 @@ const Button: React.FC<ButtonProps> = ({
       case 'warning':
         return 'bg-warning-600 text-white hover:bg-warning-700 focus:ring-warning-500';
       case 'outline':
-        return 'bg-black border border-neutral-300  hover:bg-neutral-100 focus:ring-neutral-500';
+        return 'border border-neutral-300  hover:bg-neutral-100 focus:ring-neutral-500';
       case 'ghost':
         return 'bg-black  hover:bg-neutral-100 focus:ring-neutral-500';
       default:

@@ -11,9 +11,9 @@ const Footer: React.FC = () => {
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center mb-4 md:mb-0">
               <Link to="/" className="text-lg font-semibold text-primary-600 dark:text-primary-400">ReliableRecruiter.Space</Link>
-              <span className="ml-4 text-sm text-neutral-500 dark:text-neutral-400">© {currentYear} All rights reserved</span>
+              <span className="ml-4 text-sm text-neutral-400 dark:text-neutral-400">© {currentYear} All rights reserved</span>
             </div>
-            <div className="flex space-x-6 text-sm text-neutral-500 dark:text-neutral-400">
+            <div className="flex space-x-6 text-sm text-neutral-400 dark:text-neutral-400">
               <Link to="/" className="hover: dark:hover:text-neutral-200">Home</Link>
               <a href="#" className="hover: dark:hover:text-neutral-200">About</a>
               <a href="#" className="hover: dark:hover:text-neutral-200">Privacy</a>

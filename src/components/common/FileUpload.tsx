@@ -183,12 +183,12 @@ const FileUpload: React.FC<FileUploadProps> = ({
               Browse files
             </Button>
             {acceptedFileTypes && (
-              <p className="mt-1 text-xs text-neutral-500">
+              <p className="mt-1 text-xs text-neutral-400">
                 Accepted file types: {acceptedFileTypes}
               </p>
             )}
             {maxSize && (
-              <p className="text-xs text-neutral-500">
+              <p className="text-xs text-neutral-400">
                 Maximum file size: {Math.round(maxSize / 1024 / 1024 * 10) / 10}MB
               </p>
             )}
@@ -197,7 +197,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
       </div>
 
       {helperText && !error && !fileError && (
-        <p className="mt-1 text-sm text-neutral-500">{helperText}</p>
+        <p className="mt-1 text-sm text-neutral-400">{helperText}</p>
       )}
 
       {(error || fileError) && (
