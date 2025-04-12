@@ -5,10 +5,10 @@ import Card from '../components/common/Card';
 // Tool data with descriptions
 const tools = [
   {
-    id: 'jd-checker',
+    id: 'inclusive-jd-checker',
     name: 'Inclusive JD Checker',
     description: 'Scan job descriptions for biased language and get suggestions for more inclusive alternatives.',
-    path: '/tools/jd-checker',
+    path: '/tools/inclusive-jd-checker',
     icon: 'document-text',
   },
   {

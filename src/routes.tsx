@@ -24,7 +24,7 @@ const AppRoutes = () => {
         <Route index element={<HomePage />} />
         <Route path="tools">
           <Route
-            path="jd-checker"
+            path="inclusive-jd-checker"
             element={
               <Suspense fallback={<LoadingPage />}>
                 <JDChecker />

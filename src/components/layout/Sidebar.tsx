@@ -4,7 +4,7 @@ import { useUser } from '../../context/UserContext';
 import { useApp } from '../../context/AppContext';
 
 const toolsData = [
-    { id: 'jd-checker', name: 'Inclusive JD Checker', path: '/tools/jd-checker', icon: 'document-text' },
+    { id: 'inclusive-jd-checker', name: 'Inclusive JD Checker', path: '/tools/inclusive-jd-checker', icon: 'document-text' },
     { id: 'resume-anonymizer', name: 'Resume Anonymizer', path: '/tools/resume-anonymizer', icon: 'user-circle' },
     { id: 'diverse-panel-planner', name: 'Diverse Panel Planner', path: '/tools/diverse-panel-planner', icon: 'users' },
     { id: 'layoff-impact-analyzer', name: 'Layoff Impact Analyzer', path: '/tools/layoff-impact-analyzer', icon: 'chart-bar' },

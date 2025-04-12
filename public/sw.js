@@ -1,4 +1,4 @@
-// sw.js - Service Worker file for HR ToolKit
+// sw.js - Service Worker file for RR.space
 
 // Cache names
 const CACHE_NAME = 'hr-toolkit-cache-v2'; // Increment version to force refresh

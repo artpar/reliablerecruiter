@@ -23,7 +23,7 @@ const Layout: React.FC = () => {
   // Update page title based on current route
   useEffect(() => {
     const path = location.pathname;
-    let title = 'HR ToolKit';
+    let title = 'RR.Space';
 
     if (path !== '/') {
       const pathSegments = path.split('/').filter(Boolean);
@@ -34,7 +34,7 @@ const Layout: React.FC = () => {
           .map(word => word.charAt(0).toUpperCase() + word.slice(1))
           .join(' ');
 
-        title = `${formattedToolName} | HR ToolKit`;
+        title = `${formattedToolName} | RR.Space`;
       }
     }
 
