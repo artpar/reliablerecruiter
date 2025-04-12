@@ -211,9 +211,8 @@ const JDChecker: React.FC = () => {
                     id: 'results', label: 'Results', content: (<div className="mt-4">
                         {analysisResults ? (<>
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                <Card>
-                                    <h2 className="text-xl font-semibold text-neutral-700 mb-4">Analysis
-                                        Results</h2>
+                                <Card className="">
+                                    <h2 className="text-xl font-semibold text-neutral-700 mb-4">Analysis Results</h2>
 
                                     <div className="mb-4">
                                         <div className="flex items-center mb-2">
@@ -280,7 +279,7 @@ const JDChecker: React.FC = () => {
                         </Card>)}
                     </div>),
                 },]}
-                defaultTabId={activeTab}
+                activeTabId={activeTab}
                 onChange={setActiveTab}
             />
         </div>

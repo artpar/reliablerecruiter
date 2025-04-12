@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export type TabItem = {
   id: string;
@@ -10,6 +10,7 @@ export type TabItem = {
 interface TabsProps {
   tabs: TabItem[];
   defaultTabId?: string;
+  activeTabId?: string;
   onChange?: (tabId: string) => void;
   variant?: 'default' | 'pills' | 'underline';
   className?: string;
@@ -18,18 +19,29 @@ interface TabsProps {
 const Tabs: React.FC<TabsProps> = ({
   tabs,
   defaultTabId,
+  activeTabId,
   onChange,
   variant = 'default',
   className = '',
 }) => {
-  const [activeTabId, setActiveTabId] = useState(defaultTabId || (tabs.length > 0 ? tabs[0].id : ''));
+  const [internalActiveTabId, setInternalActiveTabId] = useState(defaultTabId || (tabs.length > 0 ? tabs[0].id : ''));
+
+  // Update internal state when activeTabId prop changes
+  useEffect(() => {
+    if (activeTabId !== undefined) {
+      setInternalActiveTabId(activeTabId);
+    }
+  }, [activeTabId]);
 
   const handleTabClick = (tabId: string) => {
-    setActiveTabId(tabId);
+    setInternalActiveTabId(tabId);
     if (onChange) {
       onChange(tabId);
     }
   };
+
+  // Use activeTabId from props if provided, otherwise use internal state
+  const currentActiveTabId = activeTabId !== undefined ? activeTabId : internalActiveTabId;
 
   const getTabListStyles = () => {
     switch (variant) {
@@ -43,9 +55,9 @@ const Tabs: React.FC<TabsProps> = ({
   };
 
   const getTabStyles = (tab: TabItem) => {
-    const isActive = activeTabId === tab.id;
+    const isActive = currentActiveTabId === tab.id;
     const disabled = tab.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer';
-    
+
     switch (variant) {
       case 'pills':
         return `${
@@ -75,7 +87,7 @@ const Tabs: React.FC<TabsProps> = ({
           <button
             key={tab.id}
             role="tab"
-            aria-selected={activeTabId === tab.id}
+            aria-selected={currentActiveTabId === tab.id}
             aria-controls={`tab-panel-${tab.id}`}
             id={`tab-${tab.id}`}
             className={getTabStyles(tab)}
@@ -93,7 +105,7 @@ const Tabs: React.FC<TabsProps> = ({
             role="tabpanel"
             aria-labelledby={`tab-${tab.id}`}
             id={`tab-panel-${tab.id}`}
-            className={activeTabId === tab.id ? 'block' : 'hidden'}
+            className={currentActiveTabId === tab.id ? 'block' : 'hidden'}
           >
             {tab.content}
           </div>

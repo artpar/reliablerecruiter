@@ -138,7 +138,7 @@ const JDPreview: React.FC<JDPreviewProps> = ({
 
                 {showDiff ? (
                   <div
-                    className="p-4 border border-neutral-200 rounded-md bg-white whitespace-pre-wrap"
+                    className="p-4 border border-neutral-200 rounded-md bg-white whitespace-pre-wrap max-h-96 overflow-y-auto"
                     dangerouslySetInnerHTML={{ __html: highlightDifferences().replace(/\n/g, '<br/>') }}
                   />
                 ) : (
@@ -191,7 +191,7 @@ const JDPreview: React.FC<JDPreviewProps> = ({
             id: 'original',
             label: 'Original Version',
             content: (
-              <div className="p-4 border border-neutral-200 rounded-md bg-white whitespace-pre-wrap">
+              <div className="p-4 border border-neutral-200 rounded-md bg-white whitespace-pre-wrap max-h-96 overflow-y-auto">
                 {originalText}
               </div>
             ),
