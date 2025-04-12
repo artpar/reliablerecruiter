@@ -153,12 +153,12 @@ const HomePage: React.FC = () => {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-neutral-800">HR ToolKit</h1>
+        <h1 className="text-3xl font-bold text-neutral-800">ReliableRecruiter.Space</h1>
         <p className="text-lg text-neutral-600 mt-2">
           A suite of tools designed to assist HR professionals and recruiters with daily tasks.
         </p>
       </div>
-      
+
       <div className="mb-6">
         <h2 className="text-xl font-semibold text-neutral-700 mb-3">Available Tools</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -182,7 +182,7 @@ const HomePage: React.FC = () => {
           ))}
         </div>
       </div>
-      
+
       <div className="mt-12 bg-neutral-50 p-6 rounded-lg border border-neutral-200">
         <h2 className="text-xl font-semibold text-neutral-700 mb-3">Getting Started</h2>
         <p className="text-neutral-600 mb-4">

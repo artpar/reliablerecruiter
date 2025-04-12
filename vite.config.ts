@@ -9,25 +9,25 @@ const pwaOptions = {
   registerType: 'autoUpdate',
   includeAssets: ['favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
   manifest: {
-    name: 'HR ToolKit',
-    short_name: 'HR ToolKit',
+    name: 'RR.Space',
+    short_name: 'RR.Space',
     description: 'Tools for HR professionals and recruiters',
     theme_color: '#ffffff',
     background_color: '#ffffff',
     display: 'standalone',
     icons: [
       {
-        src: 'pwa-192x192.png',
+        src: 'logo192.png',
         sizes: '192x192',
         type: 'image/png'
       },
       {
-        src: 'pwa-512x512.png',
+        src: 'logo512.png',
         sizes: '512x512',
         type: 'image/png'
       },
       {
-        src: 'pwa-512x512.png',
+        src: 'logo512.png',
         sizes: '512x512',
         type: 'image/png',
         purpose: 'any maskable'

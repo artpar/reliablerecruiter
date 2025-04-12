@@ -41,8 +41,9 @@ const Navbar: React.FC = () => {
         <div className="flex justify-between h-16">
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
-              <Link to="/" className="text-2xl font-bold text-primary-600">
-                HR ToolKit
+              <Link to="/" className="text-2xl font-bold text-primary-600 flex items-center">
+                <img src="/logo144.png" className="h-10 w-auto mr-2" alt="ReliableRecruiter.Space Logo"/>
+                <span className="hidden md:block">ReliableRecruiter.Space</span>
               </Link>
             </div>
           </div>

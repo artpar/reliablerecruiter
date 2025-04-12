@@ -79,7 +79,7 @@ const App: React.FC = () => {
                                         </svg>
                                     </div>
                                     <div>
-                                        <h3 className="text-sm font-medium text-neutral-900">Install HR ToolKit</h3>
+                                        <h3 className="text-sm font-medium text-neutral-900">Install ReliableRecruiter.Space</h3>
                                         <p className="text-xs text-neutral-600">Install this app to your device for offline use</p>
                                     </div>
                                 </div>
