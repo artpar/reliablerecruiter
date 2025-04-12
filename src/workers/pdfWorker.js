@@ -1,10 +1,12 @@
 // public/workers/pdfWorker.js
-// This file will be copied directly to the output directory without bundling
+// This worker uses ESM imports which are compatible with type: 'module'
 
-// We need to use importScripts for service workers in this context
-importScripts('https://unpkg.com/pdfjs-dist@5.1.91/build/pdf.min.js');
+// Import PDF.js as an ES module
+import * as pdfjs from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.1.91/+esm';
 
-// PDF.js will be available as 'pdfjsLib' in the global scope after importScripts
+// Configure the worker
+const workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.1.91/build/pdf.worker.mjs';
+pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
 
 // Listen for messages from the main thread
 self.onmessage = async (event) => {
@@ -28,9 +30,8 @@ self.onmessage = async (event) => {
 // PDF processing function
 async function processPDF(content) {
   try {
-    // Use the global pdfjsLib instead of imported pdfjs
     // Load the PDF document
-    const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(content) });
+    const loadingTask = pdfjs.getDocument({ data: new Uint8Array(content) });
     const pdf = await loadingTask.promise;
 
     let fullText = '';
