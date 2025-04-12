@@ -3,7 +3,8 @@ import * as pdfjs from 'pdfjs-dist';
 
 // Set the worker source path directly
 // This is a more compatible approach for Vite/web workers
-pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.mjs`;
+const workerVersion = '5.1.91';
+pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${workerVersion}/build/pdf.worker.mjs`;
 
 // Listen for messages from the main thread
 self.onmessage = async (event) => {

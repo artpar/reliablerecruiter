@@ -46,6 +46,31 @@ const pwaOptions: Partial<VitePWAOptions> = {
           expiration: {
             maxEntries: 10,
             maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
+          },
+          cacheableResponse: {
+            statuses: [0, 200]
+          }
+        }
+      },
+      {
+        urlPattern: /\.pdf$/,
+        handler: 'CacheFirst',
+        options: {
+          cacheName: 'pdf-files-cache',
+          expiration: {
+            maxEntries: 10,
+            maxAgeSeconds: 60 * 60 * 24 * 7 // 7 days
+          }
+        }
+      },
+      {
+        urlPattern: /\/workers\//,
+        handler: 'CacheFirst',
+        options: {
+          cacheName: 'workers-cache',
+          expiration: {
+            maxEntries: 10,
+            maxAgeSeconds: 60 * 60 * 24 * 7 // 7 days
           }
         }
       }
@@ -60,7 +85,12 @@ export default defineConfig({
   },
   worker: {
     format: 'es',
-    plugins: []
+    plugins: () => [],
+    rollupOptions: {
+      output: {
+        entryFileNames: 'assets/[name].js',
+      }
+    }
   },
   build: {
     sourcemap: true,
@@ -74,7 +104,7 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ['pdfjs-dist'],
-    exclude: ['pdfjs-dist/build/pdf.worker.js']
+    exclude: ['pdfjs-dist/build/pdf.worker.min.js', 'pdfjs-dist/build/pdf.worker.mjs']
   },
   resolve: {
     alias: {

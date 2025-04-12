@@ -89,6 +89,8 @@ export const processExcel = (content: ArrayBuffer): Promise<Record<string, CSVDa
 /**
  * Extract text from a PDF file using a Web Worker
  */
+import { WorkerService } from './WorkerService';
+
 export const processPDF = (content: ArrayBuffer): Promise<string> => {
     return new Promise((resolve, reject) => {
         try {
@@ -97,31 +99,15 @@ export const processPDF = (content: ArrayBuffer): Promise<string> => {
                 throw new Error('Web Workers are not supported in this environment');
             }
 
-            // Create a new worker with the correct import URL format
-            const workerUrl = new URL('../workers/pdfWorker.ts', import.meta.url);
-            const worker = new Worker(workerUrl, { type: 'module' });
-
-            // Set up message handler to receive results
-            worker.onmessage = (event) => {
-                if (event.data.success) {
-                    resolve(event.data.result);
-                } else {
-                    reject(new Error(event.data.error || 'Unknown PDF processing error'));
-                }
-
-                // Terminate worker when done
-                worker.terminate();
-            };
-
-            // Set up error handler
-            worker.onerror = (error) => {
-                console.error('PDF worker error:', error);
-                reject(new Error('Error loading PDF worker: ' + error.message));
-                worker.terminate();
-            };
-
-            // Send PDF data to worker
-            worker.postMessage({ content });
+            // Use WorkerService to handle the PDF processing
+            WorkerService.executeTask<{content: ArrayBuffer}, string>('pdfWorker', { content })
+                .then(result => {
+                    resolve(result);
+                })
+                .catch(error => {
+                    console.error('PDF worker error:', error);
+                    reject(new Error('Error processing PDF: ' + error.message));
+                });
         } catch (error) {
             console.error('Error in processPDF:', error);
             reject(error instanceof Error ? error : new Error(String(error)));

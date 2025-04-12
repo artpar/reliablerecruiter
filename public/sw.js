@@ -20,10 +20,17 @@ const STATIC_ASSETS = [
 // PDF library resources to cache separately
 const PDF_LIB_ASSETS = [
     // PDF.js files
-    'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js',
-    'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js',
+    'https://unpkg.com/pdfjs-dist@5.1.91/build/pdf.min.mjs',
+    'https://unpkg.com/pdfjs-dist@5.1.91/build/pdf.worker.min.mjs',
+    'https://unpkg.com/pdfjs-dist@5.1.91/build/pdf.worker.mjs',
     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.5.207/pdf.worker.min.js',
     // Add other PDF.js related files as needed
+];
+
+// Worker files to cache
+const WORKER_ASSETS = [
+    '/assets/pdfWorker.js',
+    '/src/workers/pdfWorker.ts'
 ];
 
 // Install event - Cache static assets
@@ -42,6 +49,22 @@ self.addEventListener('install', (event) => {
             caches.open(PDF_LIB_CACHE).then(cache => {
                 console.log('Caching PDF library assets');
                 return cache.addAll(PDF_LIB_ASSETS);
+            }),
+
+            // Cache worker assets
+            caches.open(DYNAMIC_CACHE).then(cache => {
+                console.log('Caching worker assets');
+                // We use individual fetch instead of addAll because some worker files
+                // might not be available yet in development
+                WORKER_ASSETS.forEach(asset => {
+                    fetch(asset).then(response => {
+                        if (response.ok) {
+                            cache.put(asset, response);
+                        }
+                    }).catch(err => {
+                        console.log(`Failed to cache worker asset ${asset}:`, err);
+                    });
+                });
             })
         ])
     );
@@ -85,6 +108,13 @@ const isStaticAsset = (url) => {
 // Helper function to determine if a request is for a PDF library asset
 const isPdfLibAsset = (url) => {
     return url.includes('pdfjs-dist') || PDF_LIB_ASSETS.includes(url);
+};
+
+// Helper function to determine if a request is for a worker file
+const isWorkerAsset = (url) => {
+    return url.includes('/workers/') ||
+           url.includes('pdfWorker') ||
+           WORKER_ASSETS.some(asset => url.includes(asset));
 };
 
 // Helper function to determine if a request is for an API
@@ -132,6 +162,31 @@ self.addEventListener('fetch', (event) => {
                     }).catch(err => {
                         console.error('Failed to fetch PDF library asset:', err);
                         // Fallback could be provided here
+                    });
+                });
+            })
+        );
+        return;
+    }
+
+    // Worker files - Cache First strategy
+    if (isWorkerAsset(requestUrl)) {
+        event.respondWith(
+            caches.open(DYNAMIC_CACHE).then(cache => {
+                return cache.match(event.request).then(cachedResponse => {
+                    if (cachedResponse) {
+                        return cachedResponse;
+                    }
+
+                    // If not in cache, fetch from network
+                    return fetch(event.request).then(networkResponse => {
+                        // Cache the fresh version
+                        if (networkResponse.ok) {
+                            cache.put(event.request, networkResponse.clone());
+                        }
+                        return networkResponse;
+                    }).catch(err => {
+                        console.error('Failed to fetch worker asset:', err);
                     });
                 });
             })

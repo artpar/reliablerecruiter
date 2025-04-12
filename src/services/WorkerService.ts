@@ -13,9 +13,9 @@ export class WorkerService {
    */
   static getWorker(workerName: string): Worker {
     if (!this.workers.has(workerName)) {
-      const worker = new Worker(`/workers/${workerName}.ts`,
-        { type: 'module' }
-      );
+      // Create a URL that works in both development and production
+      const workerUrl = new URL(`../workers/${workerName}.ts`, import.meta.url).href;
+      const worker = new Worker(workerUrl, { type: 'module' });
       this.workers.set(workerName, worker);
     }
     return this.workers.get(workerName)!;
@@ -32,6 +32,10 @@ export class WorkerService {
       const worker = this.getWorker(workerName);
 
       const handleMessage = (event: MessageEvent<WorkerResponse<R>>) => {
+        if (event.data && event.data.action === "ready") {
+          console.log('WorkerService.says', event.action);
+          return;
+        }
         worker.removeEventListener('message', handleMessage);
 
         if (event.data.success) {
