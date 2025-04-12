@@ -102,6 +102,7 @@ export const processPDF = (content: ArrayBuffer): Promise<string> => {
             // Use WorkerService to handle the PDF processing
             WorkerService.executeTask<{content: ArrayBuffer}, string>('pdfWorker', { content })
                 .then(result => {
+                    console.log("Processing PDF", result);
                     resolve(result);
                 })
                 .catch(error => {
