@@ -6,27 +6,17 @@
  * @returns {Worker} Initialized PDF worker
  */
 export function createPdfWorker() {
-    // For development mode
-    if (import.meta.env.DEV) {
-        // In development, use the worker directly
-        return new Worker(new URL('../workers/pdfWorker.js', import.meta.url), {
-            type: 'module'
-        });
-    }
+    // For both development and production, use the worker from the public directory
+    // This ensures the worker is available in both environments
+    const workerUrl = new URL('/workers/pdfWorker.js', window.location.origin);
 
-    // For production mode
-    else {
-        // In production, we need to use the built worker from the assets directory
-        // The path needs to match where Vite outputs the worker in production
-        const workerPath = new URL('/assets/workers/pdfWorker.js', window.location.origin);
-        return new Worker(workerPath, {
-            type: 'module'
-        });
-    }
+    return new Worker(workerUrl, {
+        type: 'module'
+    });
 }
 
 /**
- * Example usage of the PDF worker
+ * Process a PDF file to extract text
  *
  * @param {ArrayBuffer} pdfData - The PDF file data as ArrayBuffer
  * @returns {Promise<string>} - Promise resolving to the extracted text

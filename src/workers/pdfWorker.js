@@ -1,21 +1,10 @@
-// src/workers/pdfWorker.js
-import * as pdfjs from 'pdfjs-dist';
+// public/workers/pdfWorker.js
+// This file will be copied directly to the output directory without bundling
 
-// Set the worker source path directly
-// This is a more compatible approach for Vite/web workers
-const workerVersion = '5.1.91';
+// We need to use importScripts for service workers in this context
+importScripts('https://unpkg.com/pdfjs-dist@5.1.91/build/pdf.min.js');
 
-// Send a ready message to the main thread
-self.postMessage({ action: 'ready' });
-
-// Use a CDN for the worker source to ensure it's available in all environments
-try {
-  pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${workerVersion}/build/pdf.worker.mjs`;
-} catch (error) {
-  console.error('Error setting PDF.js worker source:', error);
-  // Fallback to alternative CDN
-  pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@5.1.91/build/pdf.worker.mjs`;
-}
+// PDF.js will be available as 'pdfjsLib' in the global scope after importScripts
 
 // Listen for messages from the main thread
 self.onmessage = async (event) => {
@@ -39,8 +28,9 @@ self.onmessage = async (event) => {
 // PDF processing function
 async function processPDF(content) {
   try {
+    // Use the global pdfjsLib instead of imported pdfjs
     // Load the PDF document
-    const loadingTask = pdfjs.getDocument({ data: new Uint8Array(content) });
+    const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(content) });
     const pdf = await loadingTask.promise;
 
     let fullText = '';

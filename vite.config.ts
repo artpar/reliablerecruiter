@@ -4,6 +4,7 @@ import tsconfigPaths from 'vite-tsconfig-paths';
 import { VitePWA, VitePWAOptions } from 'vite-plugin-pwa';
 import { resolve } from 'path';
 
+
 const pwaOptions = {
   registerType: 'autoUpdate',
   includeAssets: ['favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
@@ -34,8 +35,8 @@ const pwaOptions = {
     ]
   },
   workbox: {
-    // Cache the PDF worker and other necessary files
-    globPatterns: ['**/*.{js,css,html,ico,png,svg,pdf}'],
+    // Add workers directory to precache
+    globPatterns: ['**/*.{js,css,html,ico,png,svg,pdf}', 'workers/*.js'],
     // Register route for PDF processing worker
     runtimeCaching: [
       {
@@ -78,20 +79,10 @@ const pwaOptions = {
   }
 };
 
-
 export default defineConfig({
   plugins: [react(), tsconfigPaths(), VitePWA(pwaOptions)],
   css: {
     postcss: './postcss.config.js',
-  },
-  worker: {
-    format: 'es',
-    plugins: () => [],
-    rollupOptions: {
-      output: {
-        entryFileNames: 'assets/workers/[name].js',
-      }
-    }
   },
 
   build: {
@@ -104,13 +95,7 @@ export default defineConfig({
         manualChunks: {
           'pdf-lib': ['pdfjs-dist']
         },
-        // Place worker files in a dedicated directory
-        assetFileNames: (assetInfo) => {
-          if (assetInfo.name && assetInfo.name.includes('worker')) {
-            return 'assets/workers/[name][extname]';
-          }
-          return 'assets/[name]-[hash][extname]';
-        },
+        assetFileNames: 'assets/[name]-[hash][extname]',
         chunkFileNames: 'assets/[name]-[hash].js',
         entryFileNames: 'assets/[name]-[hash].js',
       }
