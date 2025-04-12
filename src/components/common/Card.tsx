@@ -35,8 +35,8 @@ const Card: React.FC<CardProps> = ({
 
             {(title || subtitle) && (<div
                     className={`${noPadding ? '' : 'px-6 py-4'} ${!header && border ? 'border-b border-neutral-200' : ''}`}>
-                    {title && <h3 className="text-xl font-bold text-neutral-800">{title}</h3>}
-                    {subtitle && <p className="mt-1 text-sm text-neutral-600">{subtitle}</p>}
+                    {title && <h3 className="text-xl font-bold ">{title}</h3>}
+                    {subtitle && <p className="mt-1 text-sm ">{subtitle}</p>}
                 </div>)}
 
             <div className={noPadding ? '' : 'px-6 py-4'}>{children}</div>

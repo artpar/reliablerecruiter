@@ -68,12 +68,12 @@ const App: React.FC = () => {
             <AppProvider>
                 <FileProvider>
                     <Router>
-                    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-900">
+                    <div className="min-h-screen">
                         <AppRoutes />
 
                         {/* PWA Install Prompt */}
                         {isInstallPromptShown && installPrompt && (
-                            <div className="fixed bottom-4 right-4 z-40 p-4 bg-white dark:bg-neutral-800 shadow-lg rounded-lg border border-neutral-200 dark:border-neutral-700">
+                            <div className="fixed bottom-4 right-4 z-40 p-4 bg-card shadow-lg rounded-lg border border-border">
                                 <div className="flex items-center">
                                     <div className="mr-3">
                                         <svg className="w-8 h-8 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -81,21 +81,20 @@ const App: React.FC = () => {
                                         </svg>
                                     </div>
                                     <div>
-                                        <h3 className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Install ReliableRecruiter.Space</h3>
-                                        <p className="text-xs text-neutral-600 dark:text-neutral-400">Install this app to your device for offline use</p>
+                                        <h3 className="text-sm font-medium">Install ReliableRecruiter.Space</h3>
+                                        <p className="text-xs text-muted-foreground">Install this app to your device for offline use</p>
                                     </div>
                                 </div>
                                 <div className="mt-3 flex justify-end space-x-2">
                                     <button
-                                        className="text-xs text-neutral-600 dark:text-neutral-400
-                                        hover:text-neutral-900 dark:hover:text-neutral-100 border border-black dark:border-neutral-600 rounded px-3 py-1"
+                                        className="text-xs text-muted-foreground hover:text-foreground border border-border rounded px-3 py-1"
                                         onClick={() => setIsInstallPromptShown(false)}
                                     >
                                         Not now
                                     </button>
                                     <button
-                                        className="text-xs bg-primary-600 dark:bg-primary-700 text-black dark:text-white border border-black dark:border-neutral-600 rounded
-                                         px-3 py-1 rounded-md hover:bg-primary-700 dark:hover:bg-primary-800"
+                                        className="text-xs bg-primary text-primary-foreground border border-border rounded
+                                         px-3 py-1 rounded-md hover:bg-primary/90"
                                         onClick={handleInstallPWA}
                                     >
                                         Install

@@ -101,7 +101,7 @@ const SuggestionList: React.FC<SuggestionListProps> = ({
 
           {term.alternatives && term.alternatives.length > 0 ? (
             <div className="mt-3">
-              <div className="text-sm font-medium text-neutral-700 mb-2">Suggested alternatives:</div>
+              <div className="text-sm font-medium  mb-2">Suggested alternatives:</div>
               <div className="flex flex-wrap gap-2">
                 {term.alternatives.map((alternative, altIndex) => (
                   <Button

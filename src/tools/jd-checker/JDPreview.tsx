@@ -202,13 +202,13 @@ const JDPreview: React.FC<JDPreviewProps> = ({
             content: (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <h3 className="font-medium text-neutral-700 mb-2">Original</h3>
+                  <h3 className="font-medium  mb-2">Original</h3>
                   <div className="p-4 border border-neutral-200 rounded-md bg-white h-[400px] overflow-y-auto whitespace-pre-wrap">
                     {originalText}
                   </div>
                 </div>
                 <div>
-                  <h3 className="font-medium text-neutral-700 mb-2">Improved</h3>
+                  <h3 className="font-medium  mb-2">Improved</h3>
                   <div className="p-4 border border-neutral-200 rounded-md bg-white h-[400px] overflow-y-auto">
                     {showDiff ? (
                       <div

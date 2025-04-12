@@ -116,6 +116,16 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     localStorage.setItem('userPreferences', JSON.stringify(state.preferences));
   }, [state.preferences]);
+  
+  // Apply theme class to document body
+  useEffect(() => {
+    const { theme } = state.preferences;
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [state.preferences.theme]);
 
   return (
     <UserContext.Provider value={{ state, dispatch }}>

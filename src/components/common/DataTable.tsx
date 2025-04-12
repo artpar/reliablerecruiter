@@ -108,7 +108,7 @@ function DataTable<T>({
   const getCellClasses = (column: ColumnDefinition<T>) => {
     return `${
       compact ? 'px-3 py-2' : 'px-6 py-4'
-    } whitespace-nowrap text-sm text-neutral-800 ${column.className || ''}`;
+    } whitespace-nowrap text-sm  ${column.className || ''}`;
   };
 
   // Sort icon based on current sort state
@@ -152,7 +152,7 @@ function DataTable<T>({
                 scope="col"
                 className={`${
                   compact ? 'px-3 py-2' : 'px-6 py-3'
-                } text-left text-xs font-medium text-neutral-700 uppercase tracking-wider ${
+                } text-left text-xs font-medium  uppercase tracking-wider ${
                   column.sortable ? 'cursor-pointer' : ''
                 } ${column.width ? column.width : ''}`}
                 onClick={() => column.sortable && handleSort(column)}
@@ -170,7 +170,7 @@ function DataTable<T>({
         <tbody className="bg-white divide-y divide-neutral-200">
           {loading ? (
             <tr>
-              <td colSpan={columns.length} className="px-6 py-4 text-center text-neutral-600">
+              <td colSpan={columns.length} className="px-6 py-4 text-center ">
                 <div className="flex justify-center items-center space-x-2">
                   <svg className="animate-spin h-5 w-5 text-primary-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -182,7 +182,7 @@ function DataTable<T>({
             </tr>
           ) : sortedData.length === 0 ? (
             <tr>
-              <td colSpan={columns.length} className="px-6 py-4 text-center text-neutral-600">
+              <td colSpan={columns.length} className="px-6 py-4 text-center ">
                 {emptyMessage}
               </td>
             </tr>

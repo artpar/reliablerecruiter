@@ -14,11 +14,11 @@ const Footer: React.FC = () => {
               <span className="ml-4 text-sm text-neutral-500 dark:text-neutral-400">© {currentYear} All rights reserved</span>
             </div>
             <div className="flex space-x-6 text-sm text-neutral-500 dark:text-neutral-400">
-              <Link to="/" className="hover:text-neutral-700 dark:hover:text-neutral-200">Home</Link>
-              <a href="#" className="hover:text-neutral-700 dark:hover:text-neutral-200">About</a>
-              <a href="#" className="hover:text-neutral-700 dark:hover:text-neutral-200">Privacy</a>
-              <a href="#" className="hover:text-neutral-700 dark:hover:text-neutral-200">Terms</a>
-              <a href="#" className="hover:text-neutral-700 dark:hover:text-neutral-200">Contact</a>
+              <Link to="/" className="hover: dark:hover:text-neutral-200">Home</Link>
+              <a href="#" className="hover: dark:hover:text-neutral-200">About</a>
+              <a href="#" className="hover: dark:hover:text-neutral-200">Privacy</a>
+              <a href="#" className="hover: dark:hover:text-neutral-200">Terms</a>
+              <a href="#" className="hover: dark:hover:text-neutral-200">Contact</a>
             </div>
           </div>
         </div>

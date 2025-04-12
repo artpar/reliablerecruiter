@@ -24,7 +24,7 @@ const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
         {label && (
           <label
             htmlFor={props.id}
-            className="block text-sm font-medium text-neutral-700 mb-1"
+            className="block text-sm font-medium1 mb-1"
           >
             {label}
           </label>
@@ -33,7 +33,7 @@ const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
           <textarea
             ref={ref}
             className={`
-              block w-full px-3 py-2 border rounded-md 
+              block w-full px-3 py-2 border rounded-md dark:bg-black dark:text-white 
               ${error ? 'border-danger-300 focus:ring-danger-500 focus:border-danger-500' : 'border-neutral-300 focus:ring-primary-500 focus:border-primary-500'} 
               focus:outline-none focus:ring-2 focus:ring-opacity-50
               disabled:bg-neutral-100 disabled:text-neutral-500 disabled:cursor-not-allowed

@@ -1,10 +1,10 @@
 // src/tools/JDChecker.tsx
-import React, { useState, useEffect } from 'react';
+import React, {useEffect, useState} from 'react';
 import useToast from "../hooks/useToast";
-import { useFile } from "../context/FileContext";
+import {useFile} from "../context/FileContext";
 import AnalysisService from "../services/AnalysisService";
 import FileProcessingService from "../services/FileProcessingService";
-import { isPWA } from '../registerServiceWorker';
+import {isPWA} from '../registerServiceWorker';
 
 // Component imports
 import Tabs from "../components/common/Tabs";
@@ -19,8 +19,8 @@ import BiasHighlighter from "./jd-checker/BiasHighlighter";
 import BiasVisualizer from "./jd-checker/BiasVisualizer";
 
 const JDChecker: React.FC = () => {
-    const { showToast } = useToast();
-    const { state: fileState } = useFile();
+    const {showToast} = useToast();
+    const {state: fileState} = useFile();
 
     const [activeTab, setActiveTab] = useState('input');
     const [jobDescription, setJobDescription] = useState('');
@@ -134,8 +134,8 @@ const JDChecker: React.FC = () => {
 
     return (
         <div>
-            <h1 className="text-3xl font-bold text-neutral-800">Inclusive JD Checker</h1>
-            <p className="mt-2 text-neutral-600 max-w-3xl">
+            <h1 className="text-3xl font-bold ">Inclusive JD Checker</h1>
+            <p className="mt-2  max-w-3xl">
                 Scan job descriptions for biased or exclusionary language and get suggestions
                 for more inclusive alternatives.
                 {isPwaMode && <span className="ml-2 text-primary-600">(Running in PWA mode)</span>}
@@ -149,7 +149,8 @@ const JDChecker: React.FC = () => {
                             label: 'Input JD',
                             content: (
                                 <Card className="mt-4 bg-white dark:bg-neutral-800 ">
-                                    <h2 className="text-xl font-semibold text-neutral-700 mb-4 dark:text-white">Enter Job Description</h2>
+                                    <h2 className="text-xl font-semibold  mb-4 dark:text-white">Enter Job
+                                        Description</h2>
 
                                     <JDInput
                                         onAnalyze={analyzeJobDescription}
@@ -157,7 +158,7 @@ const JDChecker: React.FC = () => {
                                     />
 
                                     <div className="mt-6">
-                                        <h3 className="text-lg font-medium text-neutral-700 mb-2">Or Upload a File</h3>
+                                        <h3 className="text-lg font-medium  mb-2">Or Upload a File</h3>
                                         <FileUpload
                                             id="jd-file-upload"
                                             acceptedFileTypes=".txt,.doc,.docx,.pdf,.html"
@@ -166,8 +167,11 @@ const JDChecker: React.FC = () => {
                                         />
                                         {isPwaMode && (
                                             <p className="mt-2 text-xs text-primary-600">
-                                                <svg className="inline-block w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                <svg className="inline-block w-4 h-4 mr-1" fill="none"
+                                                     stroke="currentColor" viewBox="0 0 24 24"
+                                                     xmlns="http://www.w3.org/2000/svg">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                                 </svg>
                                                 PDF processing is running locally on your device in PWA mode
                                             </p>
@@ -187,8 +191,10 @@ const JDChecker: React.FC = () => {
                                             disabled={isAnalyzing}
                                             variant="primary"
                                             rightIcon={
-                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor"
+                                                     viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                          d="M9 5l7 7-7 7"/>
                                                 </svg>
                                             }
                                         >
@@ -207,12 +213,13 @@ const JDChecker: React.FC = () => {
                                         <>
                                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                                 <Card>
-                                                    <h2 className="text-xl font-semibold text-neutral-700 mb-4">Analysis Results</h2>
+                                                    <h2 className="text-xl font-semibold  mb-4">Analysis Results</h2>
 
                                                     <div className="mb-4">
                                                         <div className="flex items-center mb-2">
-                                                            <span className="font-medium text-neutral-700 mr-2">Bias Score:</span>
-                                                            <div className="relative w-full h-4 bg-neutral-200 rounded-full overflow-hidden">
+                                                            <span className="font-medium  mr-2">Bias Score:</span>
+                                                            <div
+                                                                className="relative w-full h-4 bg-neutral-200 rounded-full overflow-hidden">
                                                                 <div
                                                                     className={`absolute top-0 left-0 h-full ${
                                                                         analysisResults.score < 20
@@ -224,10 +231,11 @@ const JDChecker: React.FC = () => {
                                                                     style={{width: `${analysisResults.score}%`}}
                                                                 />
                                                             </div>
-                                                            <span className="ml-2 font-medium">{analysisResults.score}%</span>
+                                                            <span
+                                                                className="ml-2 font-medium">{analysisResults.score}%</span>
                                                         </div>
 
-                                                        <p className="text-sm text-neutral-600">
+                                                        <p className="text-sm ">
                                                             {analysisResults.score < 20
                                                                 ? 'This job description has low bias and is mostly inclusive.'
                                                                 : analysisResults.score < 50
@@ -239,7 +247,7 @@ const JDChecker: React.FC = () => {
 
                                                     {analysisResults.biasedTerms.length > 0 ? (
                                                         <div>
-                                                            <h3 className="font-medium text-neutral-700 mb-2">Biased Terms Found:</h3>
+                                                            <h3 className="font-medium  mb-2">Biased Terms Found:</h3>
                                                             <BiasHighlighter
                                                                 text={jobDescription}
                                                                 biasedTerms={analysisResults.biasedTerms}
@@ -253,7 +261,8 @@ const JDChecker: React.FC = () => {
                                                 </Card>
 
                                                 <Card>
-                                                    <h2 className="text-xl font-semibold text-neutral-700 mb-4">Suggested Improvements</h2>
+                                                    <h2 className="text-xl font-semibold  mb-4">Suggested
+                                                        Improvements</h2>
 
                                                     {analysisResults.biasedTerms.length > 0 ? (
                                                         <SuggestionList
@@ -263,7 +272,7 @@ const JDChecker: React.FC = () => {
                                                             improvedText={improvedJD}
                                                         />
                                                     ) : (
-                                                        <p className="text-neutral-600">
+                                                        <p className="">
                                                             No improvements needed. Your job description already uses
                                                             inclusive language.
                                                         </p>
@@ -273,13 +282,14 @@ const JDChecker: React.FC = () => {
 
                                             {analysisResults.biasedTerms.length > 0 && (
                                                 <Card className="mt-6">
-                                                    <h2 className="text-xl font-semibold text-neutral-700 mb-4">Bias Visualization</h2>
-                                                    <BiasVisualizer biasedTerms={analysisResults.biasedTerms} />
+                                                    <h2 className="text-xl font-semibold  mb-4">Bias Visualization</h2>
+                                                    <BiasVisualizer biasedTerms={analysisResults.biasedTerms}/>
                                                 </Card>
                                             )}
 
                                             <Card className="mt-6">
-                                                <h2 className="text-xl font-semibold text-neutral-700 mb-4">Improved Job Description</h2>
+                                                <h2 className="text-xl font-semibold  mb-4">Improved Job
+                                                    Description</h2>
                                                 <JDPreview
                                                     originalText={jobDescription}
                                                     improvedText={improvedJD}
@@ -290,7 +300,8 @@ const JDChecker: React.FC = () => {
                                     ) : (
                                         <Card>
                                             <Alert type="info">
-                                                Please enter or upload a job description and click "Analyze Job Description"
+                                                Please enter or upload a job description and click "Analyze Job
+                                                Description"
                                                 to see results.
                                             </Alert>
                                         </Card>

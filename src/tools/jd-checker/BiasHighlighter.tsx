@@ -87,7 +87,7 @@ const BiasHighlighter: React.FC<BiasHighlighterProps> = ({ text, biasedTerms }) 
         ))}
       </div>
 
-      <div className="mt-4 text-neutral-600 text-sm">
+      <div className="mt-4  text-sm">
         <span className="font-medium">Found:</span> {biasedTerms.length} potentially biased terms
       </div>
     </div>

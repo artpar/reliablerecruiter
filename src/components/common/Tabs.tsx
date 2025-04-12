@@ -63,19 +63,19 @@ const Tabs: React.FC<TabsProps> = ({
         return `${
           isActive
             ? 'bg-white text-primary-700 shadow-sm'
-            : 'text-neutral-600 hover:text-neutral-800 hover:bg-neutral-200'
+            : ' hover: hover:bg-neutral-200'
         } px-3 py-2 text-sm font-medium rounded-md ${disabled}`;
       case 'underline':
         return `${
           isActive
             ? 'text-primary-700 border-b-2 border-primary-500'
-            : 'text-neutral-600 hover:text-neutral-800 hover:border-neutral-300 border-b-2 border-transparent'
+            : ' hover: hover:border-neutral-300 border-b-2 border-transparent'
         } px-4 py-2 text-sm font-medium ${disabled}`;
       default:
         return `${
           isActive
             ? 'text-primary-700 border-b-2 border-primary-500'
-            : 'text-neutral-600 hover:text-neutral-800 hover:border-neutral-300 border-b-2 border-transparent'
+            : ' hover: hover:border-neutral-300 border-b-2 border-transparent'
         } px-1 py-3 text-sm font-medium ${disabled}`;
     }
   };

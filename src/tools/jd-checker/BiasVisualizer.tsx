@@ -5,7 +5,7 @@ const BiasVisualizer = ({ biasedTerms }) => {
     // Skip rendering if no data
     if (!biasedTerms || biasedTerms.length === 0) {
         return (
-            <div className="flex items-center justify-center p-10 text-neutral-600">
+            <div className="flex items-center justify-center p-10 ">
                 No biased terms detected for visualization
             </div>
         );
@@ -40,7 +40,7 @@ const BiasVisualizer = ({ biasedTerms }) => {
 
     return (
         <div className="w-full">
-            <h3 className="text-lg font-medium text-neutral-700 mb-4 text-center">Bias Categories Distribution</h3>
+            <h3 className="text-lg font-medium  mb-4 text-center">Bias Categories Distribution</h3>
 
             <div className="flex flex-col md:flex-row">
                 <div className="w-full md:w-1/2 h-64">
@@ -68,7 +68,7 @@ const BiasVisualizer = ({ biasedTerms }) => {
 
                 <div className="w-full md:w-1/2 mt-6 md:mt-0">
                     <div className="bg-white p-4 rounded-md border border-neutral-200 h-full">
-                        <h4 className="text-sm font-medium text-neutral-700 mb-3">Summary</h4>
+                        <h4 className="text-sm font-medium  mb-3">Summary</h4>
                         <ul className="space-y-2">
                             {data.map((item, index) => (
                                 <li key={index} className="flex items-center">
@@ -98,7 +98,7 @@ const BiasVisualizer = ({ biasedTerms }) => {
                             ))}
                         </ul>
 
-                        <div className="mt-6 text-xs text-neutral-600">
+                        <div className="mt-6 text-xs ">
                             <p className="mb-2">Tips for inclusive job descriptions:</p>
                             <ul className="list-disc pl-5 space-y-1">
                                 <li>Use gender-neutral language (e.g., "professional" instead of "rockstar" or "ninja")</li>

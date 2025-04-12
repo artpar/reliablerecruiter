@@ -25,7 +25,7 @@ const Layout: React.FC = () => {
     // Also update body with appropriate background and text colors
     document.body.className = userState.preferences.theme === 'dark'
       ? 'bg-neutral-900 text-white'
-      : 'bg-neutral-50 text-neutral-800';
+      : 'bg-neutral-50 ';
   }, [userState.preferences.theme]);
 
   // Update page title based on current route
