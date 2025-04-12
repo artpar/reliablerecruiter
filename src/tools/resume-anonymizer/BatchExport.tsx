@@ -141,13 +141,175 @@ export const BatchExport: React.FC<BatchExportProps> = ({ resumes }) => {
         { value: 'zip', label: 'ZIP Archive (all formats)' }
     ];
 
+    // Helper function to export a single resume
+    const handleSingleExport = (resume: AnonymizedResume) => {
+        const { fileName, anonymizedText } = resume;
+        const baseName = fileName.split('.')[0];
+
+        setIsExporting(true);
+
+        try {
+            switch (exportFormat) {
+                case 'txt':
+                    exportToText(anonymizedText, { filename: `${baseName}-anonymized.txt` });
+                    break;
+                case 'html':
+                    exportToHTML(
+                        `<pre>${anonymizedText.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>`,
+                        { filename: `${baseName}-anonymized.html`, includeBasicStyles: true }
+                    );
+                    break;
+                case 'csv':
+                    exportToCSV(
+                        [{ fileName, content: anonymizedText }],
+                        { filename: `${baseName}-anonymized.csv` }
+                    );
+                    break;
+                case 'json':
+                    exportToJSON(
+                        { fileName, content: anonymizedText, exportDate: new Date().toISOString() },
+                        { filename: `${baseName}-anonymized.json`, pretty: true }
+                    );
+                    break;
+                case 'zip':
+                    // In a real implementation, this would create a zip with multiple formats
+                    showToast('ZIP export for single resumes is not implemented in this demo.', 'info');
+                    return;
+            }
+
+            showToast(`Exported ${fileName} successfully`, 'success');
+        } catch (error) {
+            console.error('Export error:', error);
+            showToast(`Error exporting ${fileName}`, 'error');
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    // Handle batch export
+    const handleBatchExport = async () => {
+        if (selectedResumes.length === 0) {
+            showToast('Please select at least one resume to export', 'warning');
+            return;
+        }
+
+        setIsExporting(true);
+
+        try {
+            const selectedResumeData = resumes.filter(resume =>
+                selectedResumes.includes(resume.id)
+            );
+
+            switch (exportFormat) {
+                case 'txt':
+                    if (selectedResumeData.length === 1) {
+                        // Single export
+                        const resume = selectedResumeData[0];
+                        exportToText(resume.anonymizedText, {
+                            filename: `${resume.fileName.split('.')[0]}-anonymized.txt`
+                        });
+                    } else {
+                        // For multiple files, we'd typically use a zip library
+                        // For this demo, we'll do individual exports with a small delay
+                        for (const resume of selectedResumeData) {
+                            exportToText(resume.anonymizedText, {
+                                filename: `${resume.fileName.split('.')[0]}-anonymized.txt`
+                            });
+                            await new Promise(resolve => setTimeout(resolve, 300));
+                        }
+                    }
+                    break;
+
+                case 'html':
+                    if (selectedResumeData.length === 1) {
+                        const resume = selectedResumeData[0];
+                        exportToHTML(
+                            `<pre>${resume.anonymizedText.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>`,
+                            {
+                                filename: `${resume.fileName.split('.')[0]}-anonymized.html`,
+                                includeBasicStyles: true
+                            }
+                        );
+                    } else {
+                        for (const resume of selectedResumeData) {
+                            exportToHTML(
+                                `<pre>${resume.anonymizedText.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>`,
+                                {
+                                    filename: `${resume.fileName.split('.')[0]}-anonymized.html`,
+                                    includeBasicStyles: true
+                                }
+                            );
+                            await new Promise(resolve => setTimeout(resolve, 300));
+                        }
+                    }
+                    break;
+
+                case 'csv':
+                    // Export all as a single CSV file
+                    exportToCSV(
+                        selectedResumeData.map(resume => ({
+                            fileName: resume.fileName,
+                            identifiersFound: resume.identifiers.length,
+                            content: resume.anonymizedText.substring(0, 1000) + '...' // Truncate for CSV
+                        })),
+                        {
+                            filename: `anonymized-resumes-${new Date().toISOString().slice(0, 10)}.csv`,
+                            headers: {
+                                fileName: 'File Name',
+                                identifiersFound: 'Identifiers Found',
+                                content: 'Content Preview'
+                            }
+                        }
+                    );
+                    break;
+
+                case 'json':
+                    // Export all as a single JSON file
+                    exportToJSON(
+                        {
+                            exportDate: new Date().toISOString(),
+                            count: selectedResumeData.length,
+                            resumes: selectedResumeData.map(resume => ({
+                                fileName: resume.fileName,
+                                identifiersFound: {
+                                    count: resume.identifiers.length,
+                                    types: resume.identifiers.reduce((acc, curr) => {
+                                        acc[curr.type] = (acc[curr.type] || 0) + 1;
+                                        return acc;
+                                    }, {} as Record<string, number>)
+                                },
+                                content: resume.anonymizedText
+                            }))
+                        },
+                        {
+                            filename: `anonymized-resumes-${new Date().toISOString().slice(0, 10)}.json`,
+                            pretty: true
+                        }
+                    );
+                    break;
+
+                case 'zip':
+                    // In a production app, this would create a zip with all formats
+                    showToast('ZIP export would be implemented with JSZip in a real application', 'info');
+                    break;
+            }
+
+            showToast(`Exported ${selectedResumeData.length} resume(s) successfully`, 'success');
+        } catch (error) {
+            console.error('Export error:', error);
+            showToast('Error exporting resumes', 'error');
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
     // Return the main component
     return (
         <div className="space-y-6">
             <Card title="Export Options">
                 <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
+                        <div className="flex items-end">
                             <Select
                                 label="Export Format"
                                 options={formatOptions}
@@ -155,9 +317,9 @@ export const BatchExport: React.FC<BatchExportProps> = ({ resumes }) => {
                                 onChange={handleFormatChange}
                             />
                         </div>
-                        <div className="flex items-end">
+                        <div className="flex items-middle">
                             <Button
-                                variant="primary"
+                                variant="outline"
                                 onClick={handleBatchExport}
                                 isLoading={isExporting}
                                 disabled={selectedResumes.length === 0 || isExporting}

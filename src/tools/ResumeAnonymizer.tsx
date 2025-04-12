@@ -29,7 +29,7 @@ export interface AnonymizationSettings {
 }
 
 const ResumeAnonymizer: React.FC = () => {
-    const {files} = useFile();
+    const {state} = useFile();
     const {showToast} = useToast();
 
     const [uploadedFiles, setUploadedFiles] = useState<FileInfo[]>([]);
@@ -45,19 +45,31 @@ const ResumeAnonymizer: React.FC = () => {
 
     // Update uploaded files when files context changes
     useEffect(() => {
-        if (!files) {
+        console.log("Files in context:", state.files);
+        if (!state.files || Object.keys(state.files).length === 0) {
             return;
         }
-        setUploadedFiles(Object.values(files));
-    }, [files]);
+        const fileArray = Object.values(state.files);
+        console.log("Setting uploaded files:", fileArray);
+        setUploadedFiles(fileArray);
+    }, [state.files]);
 
     // Process all uploaded files
     const processResumes = async () => {
-        console.log("Processing resumes", uploadedFiles);
-        if (uploadedFiles.length === 0) {
-            showToast('Please upload at least one resume to anonymize', 'warning');
+        // Get the latest files from context to ensure we have all uploaded files
+        const currentFiles = Object.values(state.files);
+        console.log("Processing resumes", currentFiles);
+        
+        if (currentFiles.length === 0) {
+            // Only show the warning if we're not in the middle of an upload
+            if (!state.isProcessing) {
+                showToast('Please upload at least one resume to anonymize', 'warning');
+            }
             return;
         }
+        
+        // Update state with the latest files
+        setUploadedFiles(currentFiles);
 
         setIsProcessing(true);
         setError(null);
@@ -65,7 +77,9 @@ const ResumeAnonymizer: React.FC = () => {
         try {
             const newAnonymizedResumes: AnonymizedResume[] = [];
 
-            for (const file of uploadedFiles) {
+            // Use the current files from context to ensure we have the latest
+            const filesToProcess = currentFiles.length > 0 ? currentFiles : uploadedFiles;
+            for (const file of filesToProcess) {
                 try {
                     // Process file to extract text
                     const content = file.content as ArrayBuffer;
@@ -161,7 +175,12 @@ const ResumeAnonymizer: React.FC = () => {
     const tabs: TabItem[] = [{
         id: 'upload', label: 'Upload', content: (<ResumeUploader
             uploadedFiles={uploadedFiles}
-            onProcess={processResumes}
+            onProcess={() => {
+                // Only process if we have files
+                if (Object.values(state.files).length > 0 || uploadedFiles.length > 0) {
+                    processResumes();
+                }
+            }}
             isProcessing={isProcessing}
         />),
     }, {

@@ -1,89 +1,105 @@
-import React, {createContext, ReactNode, useContext, useReducer} from 'react';
+import React, { createContext, useContext, useReducer, ReactNode } from 'react';
 
-// Types
-export type FileInfo = {
-    id: string; name: string; type: string; size: number; content: string | ArrayBuffer | null; processedData?: any;
-};
+export interface FileInfo {
+    id: string;
+    name: string;
+    type: string;
+    size: number;
+    content: string | ArrayBuffer;
+    contentType?: string; // Added for specifying content type when different from file type
+    metadata?: Record<string, any>; // Additional metadata about the file
+    editedContent?: string | ArrayBuffer; // To store edited content
+}
 
-type FileState = {
-    files: Record<string, FileInfo>; currentFile: string | null; isProcessing: boolean; error: string | null;
-};
+interface FileState {
+    files: FileInfo[];
+}
 
 type FileAction =
     | { type: 'ADD_FILE'; payload: FileInfo }
-    | { type: 'REMOVE_FILE'; payload: string }
-    | {
-    type: 'SET_CURRENT_FILE';
-    payload: string
-}
-    | { type: 'SET_PROCESSED_DATA'; payload: { id: string; data: any } }
-    | { type: 'SET_PROCESSING'; payload: boolean }
-    | { type: 'SET_ERROR'; payload: string | null }
+    | { type: 'REMOVE_FILE'; payload: { id: string } }
+    | { type: 'UPDATE_FILE_CONTENT'; payload: { id: string; content: string | ArrayBuffer; contentType?: string } }
+    | { type: 'UPDATE_FILE_METADATA'; payload: { id: string; metadata: Record<string, any> } }
     | { type: 'CLEAR_FILES' };
 
-const initialState: FileState = {
-    files: {}, currentFile: null, isProcessing: false, error: null,
-};
+interface FileContextType {
+    files: FileInfo[];
+    dispatch: React.Dispatch<FileAction>;
+    getFile: (id: string) => FileInfo | undefined;
+    saveEditedContent: (id: string, content: string | ArrayBuffer, contentType?: string) => void;
+}
 
-// Create context
-const FileContext = createContext<{
-    state: FileState; dispatch: React.Dispatch<FileAction>;
-}>({
-    state: initialState, dispatch: () => null,
-});
+const FileContext = createContext<FileContextType | undefined>(undefined);
 
-// Reducer
 const fileReducer = (state: FileState, action: FileAction): FileState => {
     switch (action.type) {
         case 'ADD_FILE':
             return {
-                ...state, files: {
-                    ...state.files, [action.payload.id]: action.payload,
-                }, currentFile: action.payload.id, error: null,
+                ...state,
+                files: [...state.files, action.payload],
             };
         case 'REMOVE_FILE':
-            const newFiles = {...state.files};
-            delete newFiles[action.payload];
             return {
-                ...state, files: newFiles, currentFile: state.currentFile === action.payload ? null : state.currentFile,
+                ...state,
+                files: state.files.filter((file) => file.id !== action.payload.id),
             };
-        case 'SET_CURRENT_FILE':
+        case 'UPDATE_FILE_CONTENT':
             return {
-                ...state, currentFile: action.payload,
+                ...state,
+                files: state.files.map((file) =>
+                    file.id === action.payload.id
+                        ? {
+                            ...file,
+                            content: action.payload.content,
+                            contentType: action.payload.contentType || file.contentType || file.type
+                        }
+                        : file
+                ),
             };
-        case 'SET_PROCESSED_DATA':
+        case 'UPDATE_FILE_METADATA':
             return {
-                ...state, files: {
-                    ...state.files, [action.payload.id]: {
-                        ...state.files[action.payload.id], processedData: action.payload.data,
-                    },
-                },
-            };
-        case 'SET_PROCESSING':
-            return {
-                ...state, isProcessing: action.payload,
-            };
-        case 'SET_ERROR':
-            return {
-                ...state, error: action.payload,
+                ...state,
+                files: state.files.map((file) =>
+                    file.id === action.payload.id
+                        ? { ...file, metadata: { ...file.metadata, ...action.payload.metadata } }
+                        : file
+                ),
             };
         case 'CLEAR_FILES':
             return {
-                ...initialState,
+                ...state,
+                files: [],
             };
         default:
             return state;
     }
 };
 
-// Provider component
-export const FileProvider: React.FC<{ children: ReactNode }> = ({children}) => {
-    const [state, dispatch] = useReducer(fileReducer, initialState);
+export const FileProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    const [state, dispatch] = useReducer(fileReducer, { files: [] });
 
-    return (<FileContext.Provider value={{state, dispatch}}>
+    const getFile = (id: string) => {
+        return state.files.find(file => file.id === id);
+    };
+
+    const saveEditedContent = (id: string, content: string | ArrayBuffer, contentType?: string) => {
+        dispatch({
+            type: 'UPDATE_FILE_CONTENT',
+            payload: { id, content, contentType }
+        });
+    };
+
+    return (
+        <FileContext.Provider value={{ files: state.files, dispatch, getFile, saveEditedContent }}>
             {children}
-        </FileContext.Provider>);
+        </FileContext.Provider>
+    );
 };
 
-// Custom hook
-export const useFile = () => useContext(FileContext);
+export const useFile = (): FileContextType => {
+    const context = useContext(FileContext);
+    if (context === undefined) {
+        throw new Error('useFile must be used within a FileProvider');
+    }
+    return context;
+};

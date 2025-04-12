@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import FileUpload from '../../components/common/FileUpload';
 import Button from '../../components/common/Button';
-import {FileInfo} from '../../context/FileContext';
+import { FileInfo, useFile } from '../../context/FileContext';
 
 interface ResumeUploaderProps {
     uploadedFiles: FileInfo[];
@@ -16,6 +16,8 @@ const ResumeUploader: React.FC<ResumeUploaderProps> = ({
                                                        }) => {
     // Define accepted file types
     const acceptedFileTypes = '.pdf,.doc,.docx,.txt,.rtf';
+    const { state } = useFile();
+    const [filesUploaded, setFilesUploaded] = useState(false);
 
     // Format file size in a readable way
     const formatFileSize = (size: number): string => {
@@ -23,6 +25,13 @@ const ResumeUploader: React.FC<ResumeUploaderProps> = ({
         else if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
         else return `${(size / (1024 * 1024)).toFixed(1)} MB`;
     };
+    
+    // Effect to detect when files are added to the context
+    useEffect(() => {
+        if (uploadedFiles.length > 0) {
+            setFilesUploaded(true);
+        }
+    }, [uploadedFiles]);
 
     return (
         <div className="space-y-6">
@@ -34,6 +43,16 @@ const ResumeUploader: React.FC<ResumeUploaderProps> = ({
                     multiple={true}
                     maxSize={10 * 1024 * 1024} // 10 MB
                     helperText="Upload one or more resumes in PDF, Word, or text format (max 10MB each)"
+                    onUpload={(files) => {
+                        console.log('Files uploaded:', files);
+                        setFilesUploaded(files.length > 0);
+                        // Trigger process after a short delay to ensure files are in context
+                        if (files.length > 0) {
+                            setTimeout(() => {
+                                onProcess();
+                            }, 500);
+                        }
+                    }}
                 />
 
                 <div className="flex justify-end mt-4">
@@ -41,7 +60,7 @@ const ResumeUploader: React.FC<ResumeUploaderProps> = ({
                         variant="success"
                         onClick={onProcess}
                         isLoading={isProcessing}
-                        disabled={uploadedFiles.length === 0 || isProcessing}
+                        disabled={(uploadedFiles.length === 0 && !filesUploaded) || isProcessing}
                     >
                         {isProcessing ? 'Processing...' : 'Anonymize Resumes'}
                     </Button>
