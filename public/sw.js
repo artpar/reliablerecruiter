@@ -1,10 +1,10 @@
 // sw.js - Service Worker file for HR ToolKit
 
 // Cache names
-const CACHE_NAME = 'hr-toolkit-cache-v1';
-const STATIC_CACHE = 'hr-toolkit-static-v1';
-const DYNAMIC_CACHE = 'hr-toolkit-dynamic-v1';
-const PDF_LIB_CACHE = 'hr-toolkit-pdf-lib-v1';
+const CACHE_NAME = 'hr-toolkit-cache-v2'; // Increment version to force refresh
+const STATIC_CACHE = 'hr-toolkit-static-v2';
+const DYNAMIC_CACHE = 'hr-toolkit-dynamic-v2';
+const PDF_LIB_CACHE = 'hr-toolkit-pdf-lib-v2';
 
 // Resources to cache on install
 const STATIC_ASSETS = [
@@ -80,7 +80,8 @@ self.addEventListener('activate', (event) => {
                     if (
                         cache !== STATIC_CACHE &&
                         cache !== DYNAMIC_CACHE &&
-                        cache !== PDF_LIB_CACHE
+                        cache !== PDF_LIB_CACHE &&
+                        cache.includes('hr-toolkit')
                     ) {
                         console.log('Deleting old cache:', cache);
                         return caches.delete(cache);
@@ -107,7 +108,7 @@ const isStaticAsset = (url) => {
 
 // Helper function to determine if a request is for a PDF library asset
 const isPdfLibAsset = (url) => {
-    return url.includes('pdfjs-dist') || PDF_LIB_ASSETS.includes(url);
+    return PDF_LIB_ASSETS.some(asset => url.includes(asset));
 };
 
 // Helper function to determine if a request is for a worker file
@@ -130,6 +131,41 @@ const isNetworkFirstRequest = (url) => {
         url.includes('webpack');
 };
 
+// Helper to check content type
+const isJavaScriptContentType = (response) => {
+    const contentType = response.headers.get('content-type');
+    return contentType && (
+        contentType.includes('javascript') ||
+        contentType.includes('application/x-javascript') ||
+        contentType.includes('text/javascript')
+    );
+};
+
+// Fix MIME types for JavaScript files if needed
+const fixMimeTypeIfNeeded = async (response, url) => {
+    // If it's a JavaScript file but has wrong MIME type, fix it
+    if (url.endsWith('.js') && !isJavaScriptContentType(response)) {
+        // We need to clone and modify the response to fix the MIME type
+        return response.blob().then(blob => {
+            return new Response(blob, {
+                status: response.status,
+                statusText: response.statusText,
+                headers: new Headers({
+                    'Content-Type': 'application/javascript',
+                    // Copy other headers
+                    ...Array.from(response.headers.entries()).reduce((obj, [key, value]) => {
+                        if (key.toLowerCase() !== 'content-type') {
+                            obj[key] = value;
+                        }
+                        return obj;
+                    }, {})
+                })
+            });
+        });
+    }
+    return response;
+};
+
 // Fetch event - Handle requests with different strategies
 self.addEventListener('fetch', (event) => {
     const requestUrl = event.request.url;
@@ -140,6 +176,30 @@ self.addEventListener('fetch', (event) => {
         requestUrl.startsWith('chrome-extension') ||
         requestUrl.startsWith('moz-extension')
     ) {
+        return;
+    }
+
+    // Worker files - Network First strategy with MIME type correction
+    if (isWorkerAsset(requestUrl)) {
+        event.respondWith(
+            fetch(event.request)
+                .then(networkResponse => {
+                    // Ensure correct MIME type for worker files
+                    return fixMimeTypeIfNeeded(networkResponse, requestUrl)
+                        .then(fixedResponse => {
+                            // Cache the response with proper MIME type
+                            const responseToCache = fixedResponse.clone();
+                            caches.open(DYNAMIC_CACHE).then(cache => {
+                                cache.put(event.request, responseToCache);
+                            });
+                            return fixedResponse;
+                        });
+                })
+                .catch(() => {
+                    // Fallback to cache
+                    return caches.match(event.request);
+                })
+        );
         return;
     }
 
@@ -162,31 +222,6 @@ self.addEventListener('fetch', (event) => {
                     }).catch(err => {
                         console.error('Failed to fetch PDF library asset:', err);
                         // Fallback could be provided here
-                    });
-                });
-            })
-        );
-        return;
-    }
-
-    // Worker files - Cache First strategy
-    if (isWorkerAsset(requestUrl)) {
-        event.respondWith(
-            caches.open(DYNAMIC_CACHE).then(cache => {
-                return cache.match(event.request).then(cachedResponse => {
-                    if (cachedResponse) {
-                        return cachedResponse;
-                    }
-
-                    // If not in cache, fetch from network
-                    return fetch(event.request).then(networkResponse => {
-                        // Cache the fresh version
-                        if (networkResponse.ok) {
-                            cache.put(event.request, networkResponse.clone());
-                        }
-                        return networkResponse;
-                    }).catch(err => {
-                        console.error('Failed to fetch worker asset:', err);
                     });
                 });
             })
@@ -251,7 +286,8 @@ self.addEventListener('fetch', (event) => {
 
                     // Return the offline page if we can't fetch the resource
                     // and it's a navigation request (HTML document)
-                    if (event.request.headers.get('accept').includes('text/html')) {
+                    if (event.request.headers.get('accept') &&
+                        event.request.headers.get('accept').includes('text/html')) {
                         return caches.match('/index.html');
                     }
 
