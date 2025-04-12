@@ -148,8 +148,8 @@ const JDChecker: React.FC = () => {
                             id: 'input',
                             label: 'Input JD',
                             content: (
-                                <Card className="mt-4">
-                                    <h2 className="text-xl font-semibold text-neutral-700 mb-4">Enter Job Description</h2>
+                                <Card className="mt-4 bg-white dark:bg-neutral-800 ">
+                                    <h2 className="text-xl font-semibold text-neutral-700 mb-4 dark:text-white">Enter Job Description</h2>
 
                                     <JDInput
                                         onAnalyze={analyzeJobDescription}

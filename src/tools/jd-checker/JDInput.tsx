@@ -35,6 +35,7 @@ const JDInput: React.FC<JDInputProps> = ({onAnalyze, isAnalyzing}) => {
                     value={jobDescription}
                     onChange={handleChange}
                     rows={10}
+                    className="dark:text-white dark:bg-black"
                     placeholder="Paste your job description here..."
                     helperText="We'll analyze the text for potentially biased or exclusionary language."
                 />

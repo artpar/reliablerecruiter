@@ -4,6 +4,7 @@ import { BrowserRouter as Router } from 'react-router-dom';
 import AppRoutes from './routes';
 import { AppProvider } from './context/AppContext';
 import { FileProvider } from './context/FileContext';
+import { UserProvider } from './context/UserContext';
 import Toast from './components/common/Toast';
 import { registerServiceWorker, isPWA } from './registerServiceWorker';
 
@@ -63,9 +64,10 @@ const App: React.FC = () => {
     };
 
     return (
-        <AppProvider>
-            <FileProvider>
-                <Router>
+        <UserProvider>
+            <AppProvider>
+                <FileProvider>
+                    <Router>
                     <div className="min-h-screen bg-neutral-50 dark:bg-neutral-900">
                         <AppRoutes />
 
@@ -111,9 +113,10 @@ const App: React.FC = () => {
                             />
                         )}
                     </div>
-                </Router>
-            </FileProvider>
-        </AppProvider>
+                    </Router>
+                </FileProvider>
+            </AppProvider>
+        </UserProvider>
     );
 };
 
