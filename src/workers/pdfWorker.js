@@ -4,7 +4,18 @@ import * as pdfjs from 'pdfjs-dist';
 // Set the worker source path directly
 // This is a more compatible approach for Vite/web workers
 const workerVersion = '5.1.91';
-pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${workerVersion}/build/pdf.worker.mjs`;
+
+// Send a ready message to the main thread
+self.postMessage({ action: 'ready' });
+
+// Use a CDN for the worker source to ensure it's available in all environments
+try {
+  pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${workerVersion}/build/pdf.worker.mjs`;
+} catch (error) {
+  console.error('Error setting PDF.js worker source:', error);
+  // Fallback to alternative CDN
+  pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@5.1.91/build/pdf.worker.mjs`;
+}
 
 // Listen for messages from the main thread
 self.onmessage = async (event) => {

@@ -30,6 +30,7 @@ const PDF_LIB_ASSETS = [
 // Worker files to cache
 const WORKER_ASSETS = [
     '/assets/pdfWorker.js',
+    '/assets/workers/pdfWorker.js',
     '/src/workers/pdfWorker.js'
 ];
 
@@ -115,6 +116,7 @@ const isPdfLibAsset = (url) => {
 const isWorkerAsset = (url) => {
     return url.includes('/workers/') ||
            url.includes('pdfWorker') ||
+           url.includes('/assets/workers/') ||
            WORKER_ASSETS.some(asset => url.includes(asset));
 };
 

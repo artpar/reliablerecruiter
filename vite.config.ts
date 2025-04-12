@@ -88,16 +88,34 @@ export default defineConfig({
     plugins: () => [],
     rollupOptions: {
       output: {
-        entryFileNames: 'assets/[name].js',
+        entryFileNames: 'assets/workers/[name].js',
       }
     }
   },
   build: {
     sourcemap: true,
     rollupOptions: {
+      input: {
+        main: './index.html',
+        pdfWorker: './src/workers/pdfWorker.js'
+      },
       output: {
         manualChunks: {
           'pdf-lib': ['pdfjs-dist']
+        },
+        // Ensure worker files are placed in the assets/workers directory
+        assetFileNames: (assetInfo) => {
+          if (assetInfo.name && assetInfo.name.includes('worker')) {
+            return 'assets/workers/[name][extname]';
+          }
+          return 'assets/[name]-[hash][extname]';
+        },
+        // Ensure chunks are properly named and placed
+        chunkFileNames: (chunkInfo) => {
+          if (chunkInfo.name && chunkInfo.name.includes('worker')) {
+            return 'assets/workers/[name]-[hash].js';
+          }
+          return 'assets/[name]-[hash].js';
         }
       }
     }
