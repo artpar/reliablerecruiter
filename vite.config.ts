@@ -7,4 +7,6 @@ export default defineConfig({
   css: {
     postcss: './postcss.config.js',
   },
+  base: '/reliablerecruiter/', // Add this line - should match your repository name
+
 });
