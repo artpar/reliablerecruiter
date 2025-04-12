@@ -2,19 +2,8 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useUser } from '../../context/UserContext';
 import { useApp } from '../../context/AppContext';
+import {ToolsData} from "../tools/ToolsData";
 
-const toolsData = [
-    { id: 'inclusive-jd-checker', name: 'Inclusive JD Checker', path: '/tools/inclusive-jd-checker', icon: 'document-text' },
-    { id: 'resume-anonymizer', name: 'Resume Anonymizer', path: '/tools/resume-anonymizer', icon: 'user-circle' },
-    { id: 'diverse-panel-planner', name: 'Diverse Panel Planner', path: '/tools/diverse-panel-planner', icon: 'users' },
-    { id: 'layoff-impact-analyzer', name: 'Layoff Impact Analyzer', path: '/tools/layoff-impact-analyzer', icon: 'chart-bar' },
-    { id: 'boomerang-talent-finder', name: 'Boomerang Talent Finder', path: '/tools/boomerang-talent-finder', icon: 'refresh' },
-    { id: 'ai-outreach-personalizer', name: 'AI Outreach Personalizer', path: '/tools/ai-outreach-personalizer', icon: 'mail' },
-    { id: 'interview-load-balancer', name: 'Interview Load Balancer', path: '/tools/interview-load-balancer', icon: 'scale' },
-    { id: 'candidate-experience-pulse', name: 'Candidate Experience Pulse', path: '/tools/candidate-experience-pulse', icon: 'heart' },
-    { id: 'hybrid-office-day-planner', name: 'Hybrid Office Day Planner', path: '/tools/hybrid-office-day-planner', icon: 'calendar' },
-    { id: 'offer-comparator', name: 'Offer Comparator', path: '/tools/offer-comparator', icon: 'currency-dollar' },
-];
 
 // Simple icon component based on icon name
 const Icon: React.FC<{ name: string }> = ({ name }) => {
@@ -127,7 +116,7 @@ const Sidebar: React.FC = () => {
 
                 <div className="flex-1 overflow-y-auto py-4">
                     <nav className="px-2 space-y-1">
-                        {toolsData.map((tool) => (
+                        {ToolsData.map((tool) => (
                             <Link
                                 key={tool.id}
                                 to={tool.path}
@@ -158,7 +147,7 @@ const Sidebar: React.FC = () => {
                         </h3>
                         <nav className="mt-2 space-y-1">
                             {userState.preferences.recentTools.slice(0, 3).map((toolId) => {
-                                const tool = toolsData.find((t) => t.id === toolId);
+                                const tool = ToolsData.find((t) => t.id === toolId);
                                 if (!tool) return null;
 
                                 return (
