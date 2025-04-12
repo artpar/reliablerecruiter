@@ -14,7 +14,7 @@ export class WorkerService {
   static getWorker(workerName: string): Worker {
     if (!this.workers.has(workerName)) {
       // Create a URL that works in both development and production
-      const workerUrl = new URL(`../workers/${workerName}.ts`, import.meta.url).href;
+      const workerUrl = new URL(`../workers/${workerName}.js`, import.meta.url).href;
       const worker = new Worker(workerUrl, { type: 'module' });
       this.workers.set(workerName, worker);
     }

@@ -1,4 +1,4 @@
-// src/workers/pdfWorker.ts
+// src/workers/pdfWorker.js
 import * as pdfjs from 'pdfjs-dist';
 
 // Set the worker source path directly
@@ -26,7 +26,7 @@ self.onmessage = async (event) => {
 };
 
 // PDF processing function
-async function processPDF(content: ArrayBuffer): Promise<string> {
+async function processPDF(content) {
   try {
     // Load the PDF document
     const loadingTask = pdfjs.getDocument({ data: new Uint8Array(content) });
@@ -45,7 +45,7 @@ async function processPDF(content: ArrayBuffer): Promise<string> {
 
         // Extract text from the page
         const pageText = textContent.items
-            .map((item: any) => item.str)
+            .map((item) => item.str)
             .join(' ');
 
         fullText += pageText + '\n';
@@ -61,6 +61,3 @@ async function processPDF(content: ArrayBuffer): Promise<string> {
     throw error;
   }
 }
-
-// Export an empty object to make TypeScript happy with the module format
-export {};
