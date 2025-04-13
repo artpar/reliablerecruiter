@@ -9,12 +9,10 @@ import SuggestionList from './jd-checker/SuggestionList';
 import PDFAnnotator, { PDFAnnotation } from '../components/PDFAnnotator';
 import useToast from '../hooks/useToast';
 import { analyzeBiasedLanguage } from '../services/AnalyzeBiasedLanguage';
-import { initPDFLibrary, extractTextFromPDF } from '../services/PDFService';
 import { BiasHighlighter } from "./jd-checker/BiasHighlighter";
 
-// Initialize the PDF library when the component loads
-initPDFLibrary();
-
+// No need to initialize here - PDFAnnotator handles it internally now
+// The worker source is set in the PDFAnnotator component and will be used in extractBasicTextFromPDF
 const JDChecker: React.FC = () => {
     const { files, dispatch } = useFile();
     const { showToast } = useToast();
@@ -60,15 +58,17 @@ const JDChecker: React.FC = () => {
                 setJobDescription(text);
                 setImprovedJobDescription(text);
             } else {
-                // For PDFs, extract text using our new PDFService
+                // For PDFs, attempt to extract text
                 if (file.content instanceof ArrayBuffer) {
                     try {
-                        // Extract text from PDF using our service
-                        const extractedText = await extractTextFromPDF(file.content);
+                        // Extract text using a simpler approach
+                        // Note: We're using a basic text extraction rather than depending
+                        // on the separate service since our PDFAnnotator already includes ts-pdf
+                        const pdfText = await extractBasicTextFromPDF(file.content);
 
-                        if (extractedText && extractedText.trim()) {
-                            setJobDescription(extractedText);
-                            setImprovedJobDescription(extractedText);
+                        if (pdfText && pdfText.trim()) {
+                            setJobDescription(pdfText);
+                            setImprovedJobDescription(pdfText);
                         } else {
                             showToast('Could not extract text from PDF. You can still add annotations to the PDF.', 'warning');
                         }
@@ -79,7 +79,7 @@ const JDChecker: React.FC = () => {
                         }
                     } catch (error) {
                         console.error('Error processing PDF:', error);
-                        showToast('Error processing PDF file', 'error');
+                        showToast('Error extracting text from PDF. You can still view and annotate the document.', 'warning');
                     }
                 } else {
                     showToast('Invalid PDF content', 'error');
@@ -90,6 +90,45 @@ const JDChecker: React.FC = () => {
             showToast('Error processing file', 'error');
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Simple text extraction using pdfjs directly
+    const extractBasicTextFromPDF = async (pdfData: ArrayBuffer): Promise<string> => {
+        try {
+            // Dynamically import pdfjs
+            const pdfjsLib = await import('pdfjs-dist');
+
+            // Set the worker source path before using PDF.js
+            if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+                pdfjsLib.GlobalWorkerOptions.workerSrc = window.pdfjsWorkerSrc || 'https://unpkg.com/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
+            }
+
+            // Create a copy of the ArrayBuffer to prevent detached buffer issues
+            const pdfDataCopy = pdfData.slice(0);
+
+            // Load the document
+            const loadingTask = pdfjsLib.getDocument(new Uint8Array(pdfDataCopy));
+            const pdf = await loadingTask.promise;
+
+            let fullText = '';
+
+            // Extract text from each page
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+
+                const pageText = textContent.items
+                    .map((item: any) => item.str)
+                    .join(' ');
+
+                fullText += pageText + '\n\n';
+            }
+
+            return fullText.trim();
+        } catch (error) {
+            console.error('Error in basic text extraction:', error);
+            throw new Error(`Fallback text extraction failed: ${error}`);
         }
     };
 
@@ -337,7 +376,7 @@ const JDChecker: React.FC = () => {
                                 fileId={fileId}
                                 initialAnnotations={pdfAnnotations}
                                 onSave={handleSavePDFAnnotations}
-                                height="600px"
+                                className="600px"
                             />
                         </div>
                     ) : (
@@ -471,5 +510,12 @@ const JDChecker: React.FC = () => {
         </div>
     );
 };
+
+// Add window type declaration
+declare global {
+    interface Window {
+        pdfjsWorkerSrc?: string;
+    }
+}
 
 export default JDChecker;

@@ -103,7 +103,7 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ['pdfjs-dist'],
-    exclude: ['pdfjs-dist/build/pdf.worker.min.js', 'pdfjs-dist/build/pdf.worker.mjs']
+    exclude: ['pdfjs-dist/build/pdf.worker.min.mjs', 'pdfjs-dist/build/pdf.worker.mjs']
   },
   resolve: {
     alias: {

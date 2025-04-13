@@ -2,10 +2,10 @@
 // This worker uses ESM imports which are compatible with type: 'module'
 
 // Import PDF.js as an ES module
-import * as pdfjs from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.1.91/+esm';
+import * as pdfjs from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/+esm';
 
 // Configure the worker
-const workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.1.91/build/pdf.worker.mjs';
+const workerSrc = 'https://unpkg.com/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
 pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
 
 // Listen for messages from the main thread

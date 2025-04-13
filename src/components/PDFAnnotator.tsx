@@ -1,18 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { TsPdfViewer, TsPdfViewerOptions, InkAnnotation, HighlightAnnotation,
-    SquareAnnotation, CircleAnnotation, LineAnnotation, PolygonAnnotation,
-    PolylineAnnotation, TextAnnotation, FreeTextAnnotation, StampAnnotation,
-    AnnotationBase } from 'ts-pdf';
+import React, {useEffect, useRef, useState} from 'react';
+import {AnnotationBase, TsPdfViewer, TsPdfViewerOptions} from 'ts-pdf';
 import Card from './common/Card';
 import Button from './common/Button';
-import { useFile } from '../context/FileContext';
+import {useFile} from '../context/FileContext';
 import useToast from '../hooks/useToast';
 
 // Set the PDF.js worker source path globally
 // This needs to be done before any ts-pdf components are instantiated
 if (typeof window !== 'undefined' && !window.pdfjsWorkerSrc) {
     // Using CDN for the worker file - in production, host this file yourself
-    window.pdfjsWorkerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.7.107/pdf.worker.min.js';
+    window.pdfjsWorkerSrc = 'https://unpkg.com/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
     console.log('PDF.js worker source path set:', window.pdfjsWorkerSrc);
 }
 
@@ -31,6 +28,7 @@ interface PDFAnnotatorProps {
     onSave?: (annotations: PDFAnnotation[], fileId: string) => void;
     readOnly?: boolean;
     height?: string;
+    className?: string;
     initialAnnotations?: PDFAnnotation[];
 }
 
@@ -38,11 +36,12 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
                                                        fileId,
                                                        onSave,
                                                        readOnly = false,
+                                                       className = "",
                                                        height = '600px',
                                                        initialAnnotations = [],
                                                    }) => {
-    const { files, dispatch } = useFile();
-    const { showToast } = useToast();
+    const {files, dispatch} = useFile();
+    const {showToast} = useToast();
 
     const [loading, setLoading] = useState(true);
     const [viewer, setViewer] = useState<TsPdfViewer | null>(null);
@@ -55,6 +54,30 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
     const [error, setError] = useState<string | null>(null);
 
     const containerRef = useRef<HTMLDivElement>(null);
+    // Track component mount state to prevent state updates after unmount
+    const isMountedRef = useRef<boolean>(true);
+    // Generate a unique ID for this instance to prevent shadow DOM conflicts
+    const instanceId = useRef<string>(`pdf-container-${fileId}-${Date.now()}`);
+
+    // Cleanup function to be called on component unmount
+    useEffect(() => {
+        return () => {
+            isMountedRef.current = false;
+
+            // Additional cleanup for the container element
+            const container = document.querySelector(`#${instanceId.current}`);
+            if (container && (container as any).shadowRoot) {
+                console.log('Cleanup on unmount: container has shadow root');
+                try {
+                    if (viewer) {
+                        viewer.closePdfAsync().catch(console.error);
+                    }
+                } catch (err) {
+                    console.warn('Error during unmount cleanup:', err);
+                }
+            }
+        };
+    }, [fileId, viewer]);
 
     // Initialize PDF viewer
     useEffect(() => {
@@ -76,15 +99,9 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
             return;
         }
 
-        // Ensure we have the worker source set
-        if (!window.pdfjsWorkerSrc) {
-            window.pdfjsWorkerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.7.107/pdf.worker.min.js';
-            console.log('PDF.js worker source path set in component:', window.pdfjsWorkerSrc);
-        }
-
         // Set up the options for the viewer
         const options: TsPdfViewerOptions = {
-            containerSelector: `#pdf-container-${fileId}`,
+            containerSelector: `#${instanceId.current}`,
             userName: 'HR ToolKit User',
             enableHistory: true,
             disableOpenAction: true,
@@ -95,70 +112,86 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
             workerSource: window.pdfjsWorkerSrc, // Explicitly provide the worker source
         };
 
-        // Create and initialize the viewer
+        // Create a variable to track if the component is mounted
+        let isMounted = true;
+
         try {
             console.log('Creating TsPdfViewer with options:', options);
-            const pdfViewer = new TsPdfViewer(options);
+            let pdfViewer: TsPdfViewer | null = null;
 
-            // If we have the content as ArrayBuffer, convert to Uint8Array
-            let pdfData: Uint8Array;
-            if (file.content instanceof ArrayBuffer) {
-                pdfData = new Uint8Array(file.content);
-            } else {
-                // Handle string content (unlikely for PDF but just in case)
-                const encoder = new TextEncoder();
-                pdfData = encoder.encode(file.content as string);
-            }
+            // Small delay to ensure DOM is fully ready
+            setTimeout(() => {
+                if (!isMounted) return;
 
-            // Open the PDF
-            console.log('Opening PDF...');
-            pdfViewer.openPdfAsync(pdfData)
-                .then(() => {
-                    console.log('PDF opened successfully');
-                    setViewer(pdfViewer);
-                    setTotalPages(pdfViewer.pagesCount);
-                    setLoading(false);
-                    setError(null);
+                try {
+                    pdfViewer = new TsPdfViewer(options);
 
-                    // Import initial annotations if any
-                    if (initialAnnotations?.length) {
-                        console.log('Importing initial annotations:', initialAnnotations.length);
-                        importAnnotations(initialAnnotations);
+                    // If we have the content as ArrayBuffer, convert to Uint8Array
+                    let pdfData: Uint8Array;
+                    if (file.content instanceof ArrayBuffer) {
+                        try {
+                            // Create a new copy of the ArrayBuffer to prevent detached buffer issues
+                            const contentCopy = file.content.slice(0);
+                            pdfData = new Uint8Array(contentCopy);
+                        } catch (error) {
+                            console.error('Error creating Uint8Array from ArrayBuffer:', error);
+                            throw new Error('Failed to process PDF data: ' + error.message);
+                        }
+                    } else {
+                        // Handle string content (unlikely for PDF but just in case)
+                        const encoder = new TextEncoder();
+                        pdfData = encoder.encode(file.content as string);
                     }
-                })
-                .catch((error) => {
-                    console.error('Error opening PDF:', error);
-                    showToast('Failed to open PDF: ' + error.message, 'error');
+
+                    // Open the PDF
+                    console.log('Opening PDF...');
+                    pdfViewer.openPdfAsync(pdfData)
+                        .then(() => {
+                            if (!isMounted) return;
+
+                            console.log('PDF opened successfully');
+                            setViewer(pdfViewer);
+                            setTotalPages(pdfViewer!.pagesCount);
+                            setLoading(false);
+                            setError(null);
+
+                            // Import initial annotations if any
+                            if (initialAnnotations?.length) {
+                                console.log('Importing initial annotations:', initialAnnotations.length);
+                                importAnnotations(initialAnnotations);
+                            }
+                        })
+                        .catch((error) => {
+                            if (!isMounted) return;
+
+                            console.error('Error opening PDF:', error);
+                            showToast('Failed to open PDF: ' + error.message, 'error');
+                            setLoading(false);
+                            setError('Failed to open PDF: ' + error.message);
+                        });
+                } catch (error: any) {
+                    if (!isMounted) return;
+
+                    console.error('Error initializing PDF viewer:', error);
+                    showToast('Failed to initialize PDF viewer: ' + error.message, 'error');
                     setLoading(false);
-                    setError('Failed to open PDF: ' + error.message);
-                });
-
-            // Add event listeners for page change and annotations
-            pdfViewer.addEventListener('pageChanged', (e: CustomEvent) => {
-                console.log('Page changed:', e.detail.pageNumber);
-                setCurrentPage(e.detail.pageNumber);
-            });
-
-            pdfViewer.addEventListener('annotationCreated', (e: CustomEvent) => {
-                console.log('Annotation created');
-                updateAnnotationsState();
-            });
-
-            pdfViewer.addEventListener('annotationDeleted', (e: CustomEvent) => {
-                console.log('Annotation deleted');
-                updateAnnotationsState();
-            });
-
-            pdfViewer.addEventListener('annotationUpdated', (e: CustomEvent) => {
-                console.log('Annotation updated');
-                updateAnnotationsState();
-            });
+                    setError('Failed to initialize PDF viewer: ' + error.message);
+                }
+            }, 50);
 
             return () => {
+                // Mark component as unmounted
+                isMounted = false;
+
                 // Cleanup
                 if (pdfViewer) {
                     console.log('Closing PDF viewer');
-                    pdfViewer.closeAsync().catch(console.error);
+                    try {
+                        pdfViewer.closePdfAsync().catch(console.error);
+                        setViewer(null);
+                    } catch (err) {
+                        console.warn('Error during PDF viewer cleanup:', err);
+                    }
                 }
             };
         } catch (error: any) {
@@ -166,6 +199,9 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
             showToast('Failed to initialize PDF viewer: ' + error.message, 'error');
             setLoading(false);
             setError('Failed to initialize PDF viewer: ' + error.message);
+            return () => {
+                isMounted = false;
+            };
         }
     }, [fileId, files, showToast, readOnly, initialAnnotations]);
 
@@ -313,199 +349,137 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
         }
     };
 
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center h-full">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
-                <span className="ml-3 text-neutral-600">Loading PDF...</span>
-            </div>
-        );
-    }
+    // Navigation helpers
+    const handlePreviousPage = () => goToPage(currentPage - 1);
+    const handleNextPage = () => goToPage(currentPage + 1);
+    const handleZoomIn = () => handleZoom(true);
+    const handleZoomOut = () => handleZoom(false);
+    const handleSaveAnnotations = () => handleSave();
 
     if (error) {
         return (
-            <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-                <div className="text-red-600 mb-4">
-                    <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+            <Card className="pdf-annotator-container" style={{height}}>
+                <div className="pdf-error-container">
+                    <p className="error-message">{error}</p>
                 </div>
-                <h3 className="text-lg font-medium text-neutral-800 mb-2">Error Loading PDF</h3>
-                <p className="text-neutral-600 mb-4">{error}</p>
-                <Button
-                    variant="outline"
-                    onClick={() => window.location.reload()}
-                >
-                    Reload Page
-                </Button>
-            </div>
+            </Card>
         );
     }
 
     return (
-        <Card className="h-full flex flex-col">
-            {/* Toolbar */}
-            <div className="flex justify-between items-center mb-4 border-b border-neutral-200 pb-3">
-                <div className="flex items-center space-x-2">
-                    <button
-                        className="p-1 rounded hover:bg-neutral-100"
-                        onClick={() => goToPage(currentPage - 1)}
-                        disabled={currentPage === 1}
+        <Card className={className + " pdf-annotator-container"} style={{height, overflow: 'hidden'}}>
+            <div className="pdf-toolbar">
+                {!readOnly && (
+                    <div className="annotation-tools">
+                        <Button
+                            onClick={() => setAnnotationMode(annotationMode === 'highlight' ? null : 'highlight')}
+                            variant={annotationMode === 'highlight' ? 'primary' : 'secondary'}
+                            size="sm"
+                        >
+                            Highlight
+                        </Button>
+                        <Button
+                            onClick={() => setAnnotationMode(annotationMode === 'ink' ? null : 'ink')}
+                            variant={annotationMode === 'ink' ? 'primary' : 'secondary'}
+                            size="sm"
+                        >
+                            Ink
+                        </Button>
+                        <Button
+                            onClick={() => setAnnotationMode(annotationMode === 'square' ? null : 'square')}
+                            variant={annotationMode === 'square' ? 'primary' : 'secondary'}
+                            size="sm"
+                        >
+                            Square
+                        </Button>
+                        <Button
+                            onClick={() => setAnnotationMode(annotationMode === 'circle' ? null : 'circle')}
+                            variant={annotationMode === 'circle' ? 'primary' : 'secondary'}
+                            size="sm"
+                        >
+                            Circle
+                        </Button>
+                        <Button
+                            onClick={() => setAnnotationMode(annotationMode === 'text' ? null : 'text')}
+                            variant={annotationMode === 'text' ? 'primary' : 'secondary'}
+                            size="sm"
+                        >
+                            Text
+                        </Button>
+                        <Button
+                            onClick={() => setAnnotationMode(annotationMode === 'freetext' ? null : 'freetext')}
+                            variant={annotationMode === 'freetext' ? 'primary' : 'secondary'}
+                            size="sm"
+                        >
+                            Free Text
+                        </Button>
+                        {selectedAnnotation && (
+                            <Button
+                                onClick={handleDeleteAnnotation}
+                                variant="danger"
+                                size="sm"
+                            >
+                                Delete
+                            </Button>
+                        )}
+                    </div>
+                )}
+                <div className="navigation-tools">
+                    <Button
+                        onClick={handlePreviousPage}
+                        disabled={currentPage <= 1 || loading}
+                        size="sm"
                     >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                        </svg>
-                    </button>
-
-                    <span className="text-sm">
+                        Previous
+                    </Button>
+                    <span className="page-info">
                         Page {currentPage} of {totalPages}
                     </span>
-
-                    <button
-                        className="p-1 rounded hover:bg-neutral-100"
-                        onClick={() => goToPage(currentPage + 1)}
-                        disabled={currentPage === totalPages}
+                    <Button
+                        onClick={handleNextPage}
+                        disabled={currentPage >= totalPages || loading}
+                        size="sm"
                     >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                    </button>
-
-                    <div className="border-l border-neutral-300 h-6 mx-2"></div>
-
-                    <button
-                        className="p-1 rounded hover:bg-neutral-100"
-                        onClick={() => handleZoom(false)}
-                        disabled={scale <= 0.5}
+                        Next
+                    </Button>
+                    <Button
+                        onClick={handleZoomIn}
+                        disabled={loading}
+                        size="sm"
                     >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                        </svg>
-                    </button>
-
-                    <span className="text-sm">{Math.round(scale * 100)}%</span>
-
-                    <button
-                        className="p-1 rounded hover:bg-neutral-100"
-                        onClick={() => handleZoom(true)}
-                        disabled={scale >= 3}
+                        Zoom In
+                    </Button>
+                    <Button
+                        onClick={handleZoomOut}
+                        disabled={loading}
+                        size="sm"
                     >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                        </svg>
-                    </button>
-                </div>
-
-                {!readOnly && (
-                    <div className="flex items-center space-x-2">
-                        <button
-                            className={`p-2 rounded text-sm ${annotationMode === 'highlight' ? 'bg-yellow-100 text-yellow-800' : 'hover:bg-neutral-100'}`}
-                            onClick={() => setAnnotationTool(annotationMode === 'highlight' ? null : 'highlight')}
-                            title="Highlight Text"
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                            </svg>
-                        </button>
-
-                        <button
-                            className={`p-2 rounded text-sm ${annotationMode === 'text' ? 'bg-blue-100 text-blue-800' : 'hover:bg-neutral-100'}`}
-                            onClick={() => setAnnotationTool(annotationMode === 'text' ? null : 'text')}
-                            title="Add Note"
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-                            </svg>
-                        </button>
-
-                        <button
-                            className={`p-2 rounded text-sm ${annotationMode === 'ink' ? 'bg-red-100 text-red-800' : 'hover:bg-neutral-100'}`}
-                            onClick={() => setAnnotationTool(annotationMode === 'ink' ? null : 'ink')}
-                            title="Ink Tool"
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                            </svg>
-                        </button>
-
-                        <button
-                            className={`p-2 rounded text-sm ${annotationMode === 'square' ? 'bg-green-100 text-green-800' : 'hover:bg-neutral-100'}`}
-                            onClick={() => setAnnotationTool(annotationMode === 'square' ? null : 'square')}
-                            title="Add Square"
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z" />
-                            </svg>
-                        </button>
-
-                        <button
-                            className={`p-2 rounded text-sm ${annotationMode === 'circle' ? 'bg-purple-100 text-purple-800' : 'hover:bg-neutral-100'}`}
-                            onClick={() => setAnnotationTool(annotationMode === 'circle' ? null : 'circle')}
-                            title="Add Circle"
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
-                            </svg>
-                        </button>
-
-                        <button
-                            className={`p-2 rounded text-sm ${annotationMode === 'freetext' ? 'bg-indigo-100 text-indigo-800' : 'hover:bg-neutral-100'}`}
-                            onClick={() => setAnnotationTool(annotationMode === 'freetext' ? null : 'freetext')}
-                            title="Add Free Text"
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                        </button>
-
-                        <div className="border-l border-neutral-300 h-6 mx-2"></div>
-
+                        Zoom Out
+                    </Button>
+                    {onSave && (
                         <Button
-                            variant="primary"
+                            onClick={handleSaveAnnotations}
+                            variant="success"
                             size="sm"
-                            onClick={handleSave}
+                            disabled={loading}
                         >
-                            Save Changes
+                            Save Annotations
                         </Button>
+                    )}
+                </div>
+            </div>
+            <div
+                id={instanceId.current}
+                ref={containerRef}
+                className="pdf-content"
+                style={{height: 'calc(100% - 50px)', width: '100%', position: 'relative'}}
+            >
+                {loading && (
+                    <div className="pdf-loading">
+                        <p>Loading PDF...</p>
                     </div>
                 )}
             </div>
-
-            {/* PDF Viewer */}
-            <div className="relative flex-grow overflow-auto" style={{ height }}>
-                <div
-                    id={`pdf-container-${fileId}`}
-                    ref={containerRef}
-                    className="w-full h-full"
-                ></div>
-            </div>
-
-            {/* Annotation details panel (when an annotation is selected) */}
-            {selectedAnnotation && !readOnly && (
-                <div className="mt-4 p-3 border rounded-md bg-neutral-50">
-                    <div className="flex justify-between items-center mb-2">
-                        <h3 className="text-sm font-medium">
-                            Annotation Properties
-                        </h3>
-                        <button
-                            className="text-red-600 hover:text-red-800"
-                            onClick={handleDeleteAnnotation}
-                        >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                        </button>
-                    </div>
-
-                    <div className="text-sm text-neutral-600">
-                        <p>Type: {selectedAnnotation.type}</p>
-                        {selectedAnnotation.author && <p>Author: {selectedAnnotation.author}</p>}
-                        {selectedAnnotation.dateCreated && (
-                            <p>Created: {new Date(selectedAnnotation.dateCreated).toLocaleString()}</p>
-                        )}
-                    </div>
-                </div>
-            )}
         </Card>
     );
 };

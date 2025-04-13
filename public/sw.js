@@ -22,9 +22,6 @@ const PDF_LIB_ASSETS = [
     // PDF.js files
     'https://unpkg.com/pdfjs-dist@5.1.91/build/pdf.min.mjs',
     'https://unpkg.com/pdfjs-dist@5.1.91/build/pdf.worker.min.mjs',
-    'https://unpkg.com/pdfjs-dist@5.1.91/build/pdf.worker.mjs',
-    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.5.207/pdf.worker.min.js',
-    // Add other PDF.js related files as needed
 ];
 
 // Worker files to cache
@@ -33,11 +30,11 @@ const WORKER_ASSETS = [
     '/assets/pdfWorker.js',
     '/assets/workers/pdfWorker.js',
     '/src/workers/pdfWorker.js',
-    
+
     // PDF Annotation Worker files
     '/assets/workers/pdfAnnotationWorker.js',
     '/src/workers/pdfAnnotationWorker.js',
-    
+
     // PDF Editor Worker files
     '/assets/workers/pdfEditorWorker.js',
     '/src/workers/pdfEditorWorker.js'
@@ -314,10 +311,303 @@ self.addEventListener('fetch', (event) => {
 
 // Handle messages from clients
 self.addEventListener('message', (event) => {
-    if (event.data && event.data.type === 'SKIP_WAITING') {
-        self.skipWaiting();
+    // Get the client that sent the message
+    const client = event.source;
+
+    // Handle different message types
+    if (!event.data || !event.data.type) {
+        return;
+    }
+
+    switch (event.data.type) {
+        case 'SKIP_WAITING':
+            self.skipWaiting();
+            break;
+
+        case 'PDF_TASK':
+            handlePDFTask(event.data.payload, event.ports[0]);
+            break;
+
+        case 'PDF_ANNOTATION_TASK':
+            handlePDFAnnotationTask(event.data.payload, event.ports[0]);
+            break;
+
+        default:
+            // Unknown message type
+            break;
     }
 });
+
+/**
+ * Handle PDF processing tasks
+ *
+ * @param {Object} payload - The task payload
+ * @param {MessagePort} port - The message port to respond on
+ */
+async function handlePDFTask(payload, port) {
+    try {
+        if (!payload || !payload.action) {
+            throw new Error('Invalid PDF task payload');
+        }
+
+        const { action, content, options } = payload;
+        let result;
+
+        // Import PDF.js dynamically
+        const pdfjs = await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@5.1.91/+esm');
+
+        // Configure the worker
+        const workerSrc = 'https://unpkg.com/pdfjs-dist@5.1.91/build/pdf.worker.min.mjs';
+        pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
+
+        switch (action) {
+            case 'extract':
+                result = await extractTextFromPDF(pdfjs, content);
+                break;
+
+            default:
+                throw new Error(`Unknown PDF action: ${action}`);
+        }
+
+        // Send the result back
+        port.postMessage({
+            success: true,
+            result
+        });
+    } catch (error) {
+        console.error('Error in PDF task handler:', error);
+        port.postMessage({
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+        });
+    } finally {
+        // Close the port
+        port.close();
+    }
+}
+
+/**
+ * Handle PDF annotation tasks
+ *
+ * @param {Object} payload - The task payload
+ * @param {MessagePort} port - The message port to respond on
+ */
+async function handlePDFAnnotationTask(payload, port) {
+    try {
+        if (!payload || !payload.action) {
+            throw new Error('Invalid PDF annotation task payload');
+        }
+
+        const { action, content, options } = payload;
+        let result;
+
+        // Import PDF.js dynamically
+        const pdfjs = await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@5.1.91/+esm');
+
+        // Configure the worker
+        const workerSrc = 'https://unpkg.com/pdfjs-dist@5.1.91/build/pdf.worker.min.mjs';
+        pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
+
+        switch (action) {
+            case 'extract':
+                result = await extractTextFromPDF(pdfjs, content);
+                break;
+
+            case 'search':
+                result = await searchTextInPDF(pdfjs, content, options?.searchText, options);
+                break;
+
+            case 'extractAnnotations':
+                result = await extractAnnotationsFromPDF(pdfjs, content);
+                break;
+
+            case 'saveAnnotations':
+                result = await saveAnnotationsToPDF(pdfjs, content, options?.annotations);
+                break;
+
+            default:
+                throw new Error(`Unknown PDF annotation action: ${action}`);
+        }
+
+        // Send the result back
+        port.postMessage({
+            success: true,
+            result
+        });
+    } catch (error) {
+        console.error('Error in PDF annotation task handler:', error);
+        port.postMessage({
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+        });
+    } finally {
+        // Close the port
+        port.close();
+    }
+}
+
+/**
+ * Extract text from a PDF document
+ *
+ * @param {Object} pdfjs - The PDF.js library
+ * @param {ArrayBuffer} content - The PDF content as an ArrayBuffer
+ * @returns {Promise<string>} The extracted text
+ */
+async function extractTextFromPDF(pdfjs, content) {
+    try {
+        // Create a copy of the ArrayBuffer
+        const pdfDataCopy = new Uint8Array(content.slice(0));
+
+        // Load the PDF
+        const loadingTask = pdfjs.getDocument({ data: pdfDataCopy });
+        const pdf = await loadingTask.promise;
+
+        let fullText = '';
+
+        // Extract text from each page
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const textContent = await page.getTextContent();
+
+            // Combine text items
+            const pageText = textContent.items
+                .map((item) => item.str)
+                .join(' ');
+
+            fullText += pageText + '\n\n';
+        }
+
+        return fullText.trim();
+    } catch (error) {
+        console.error('Error in extractTextFromPDF:', error);
+        throw error;
+    }
+}
+
+/**
+ * Search for text in a PDF document
+ *
+ * @param {Object} pdfjs - The PDF.js library
+ * @param {ArrayBuffer} content - The PDF content as an ArrayBuffer
+ * @param {string} searchText - The text to search for
+ * @param {Object} options - Search options
+ * @returns {Promise<Array>} The search results
+ */
+async function searchTextInPDF(pdfjs, content, searchText, options = {}) {
+    try {
+        const { matchCase = false, wholeWord = false } = options;
+
+        // Create a copy of the ArrayBuffer
+        const pdfDataCopy = new Uint8Array(content.slice(0));
+
+        // Load the PDF
+        const loadingTask = pdfjs.getDocument({ data: pdfDataCopy });
+        const pdf = await loadingTask.promise;
+
+        const results = [];
+
+        // Search each page
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const textContent = await page.getTextContent();
+            const viewport = page.getViewport({ scale: 1.0 });
+
+            // Create regex pattern for search
+            let pattern = searchText;
+            if (!matchCase) {
+                pattern = pattern.toLowerCase();
+            }
+
+            if (wholeWord) {
+                pattern = `\\b${pattern}\\b`;
+            }
+
+            const regex = new RegExp(pattern, matchCase ? 'g' : 'gi');
+
+            // Process text items
+            let combinedText = '';
+
+            textContent.items.forEach((item) => {
+                let itemText = item.str;
+                if (!matchCase) {
+                    itemText = itemText.toLowerCase();
+                }
+
+                combinedText += itemText + ' ';
+
+                // Check for matches
+                const matches = itemText.match(regex);
+                if (matches) {
+                    matches.forEach(() => {
+                        // Get match position
+                        const index = itemText.search(regex);
+
+                        // Calculate rectangle for the match
+                        const x = item.transform[4];
+                        const y = viewport.height - item.transform[5];
+
+                        // Approximate width based on font size and text length
+                        const width = searchText.length * (item.width / item.str.length || 8);
+                        const height = item.height || 14;
+
+                        results.push({
+                            pageNumber: i,
+                            text: searchText,
+                            rect: {
+                                x,
+                                y: y - height,
+                                width,
+                                height
+                            }
+                        });
+                    });
+                }
+            });
+        }
+
+        return results;
+    } catch (error) {
+        console.error('Error in searchTextInPDF:', error);
+        throw error;
+    }
+}
+
+/**
+ * Extract annotations from a PDF document
+ *
+ * @param {Object} pdfjs - The PDF.js library
+ * @param {ArrayBuffer} content - The PDF content as an ArrayBuffer
+ * @returns {Promise<Array>} The extracted annotations
+ */
+async function extractAnnotationsFromPDF(pdfjs, content) {
+    try {
+        // In a real implementation, this would extract actual PDF annotations
+        // For this demo, we'll return a placeholder
+        return [];
+    } catch (error) {
+        console.error('Error in extractAnnotationsFromPDF:', error);
+        throw error;
+    }
+}
+
+/**
+ * Save annotations to a PDF document
+ *
+ * @param {Object} pdfjs - The PDF.js library
+ * @param {ArrayBuffer} content - The PDF content as an ArrayBuffer
+ * @param {Array} annotations - The annotations to save
+ * @returns {Promise<ArrayBuffer>} The modified PDF content
+ */
+async function saveAnnotationsToPDF(pdfjs, content, annotations = []) {
+    try {
+        // In a real implementation, this would save annotations to the PDF
+        // For this demo, we'll just return the original PDF data
+        return content.slice(0);
+    } catch (error) {
+        console.error('Error in saveAnnotationsToPDF:', error);
+        throw error;
+    }
+}
 
 // Handle background sync for offline operations
 self.addEventListener('sync', (event) => {
