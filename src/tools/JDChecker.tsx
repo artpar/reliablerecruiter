@@ -213,7 +213,7 @@ const JDChecker: React.FC = () => {
     };
 
     // Convert biased terms to PDF annotations
-    const createBiasAnnotations = (biasedTerms: any[]) => {
+    const createBiasAnnotations = async (biasedTerms: any[]) => {
         // Check if biasedTerms is valid
         if (!biasedTerms || !Array.isArray(biasedTerms) || biasedTerms.length === 0) {
             console.log('No biased terms to highlight');
@@ -225,30 +225,80 @@ const JDChecker: React.FC = () => {
             const filteredAnnotations = pdfAnnotations.filter(ann =>
                 !(ann.type === 'highlight' && ann.uuid && ann.uuid.startsWith('bias-')));
 
+            // Get the file content to search for term positions
+            const file = files.find(f => f.id === fileId);
+            if (!file || !(file.content instanceof ArrayBuffer)) {
+                console.error('PDF file content not available');
+                return;
+            }
+
+            // Import the PDFAnnotationService
+            const { searchText } = await import('../services/PDFAnnotationService');
+
             // Create new bias highlight annotations
-            const newAnnotations: PDFAnnotation[] = biasedTerms.map((term, index) => {
-                // Create a unique ID for this annotation
-                const uuid = `bias-${term.term}-${Date.now()}-${index}`;
+            const newAnnotations: PDFAnnotation[] = [];
 
-                // Get category-specific color
-                const color = getColorForCategory(term.category);
+            // Process each biased term to find its position in the PDF
+            for (const [index, term] of biasedTerms.entries()) {
+                try {
+                    // Create a unique ID for this annotation
+                    const uuid = `bias-${term.term}-${Date.now()}-${index}`;
 
-                // TODO: Create highlight annotation
-                // Note: in a real implementation, you would need to
-                // find the actual position of this text in the PDF
-                return {
-                    type: 'highlight',
-                    uuid,
-                    pageIndex: 0, // We'll default to first page since we don't know the actual position
-                    rects: [], // This would need to contain the actual position of the term in the PDF
-                    color,
-                    author: 'Bias Checker',
-                    dateCreated: new Date().toISOString(),
-                    dateModified: new Date().toISOString(),
-                    content: `Biased term (${term.category}): ${term.term}\nSuggested alternatives: ${term.alternatives?.join(', ') || 'No alternatives provided'}`,
-                    // Add more properties as needed by ts-pdf library
-                };
-            });
+                    // Get category-specific color
+                    const color = getColorForCategory(term.category);
+
+                    // Search for the term in the PDF to get its position
+                    const searchResults = await searchText(file.content as ArrayBuffer, term.term, {
+                        matchCase: false,
+                        wholeWord: true
+                    });
+
+                    if (searchResults && searchResults.length > 0) {
+                        // Create an annotation for each occurrence of the term
+                        for (const result of searchResults) {
+                            const annotation: PDFAnnotation = {
+                                type: 'highlight',
+                                uuid: `${uuid}-${result.pageNumber}`,
+                                pageIndex: result.pageNumber - 1, // Convert from 1-based to 0-based indexing
+                                rects: [{
+                                    x: result.rect.x,
+                                    y: result.rect.y,
+                                    width: result.rect.width,
+                                    height: result.rect.height
+                                }],
+                                color,
+                                author: 'Bias Checker',
+                                dateCreated: new Date().toISOString(),
+                                dateModified: new Date().toISOString(),
+                                content: `Biased term (${term.category}): ${term.term}\nSuggested alternatives: ${term.alternatives?.join(', ') || 'No alternatives provided'}`,
+                            };
+                            newAnnotations.push(annotation);
+                        }
+                    } else {
+                        // If term not found, create a default annotation on the first page
+                        console.log(`Term "${term.term}" not found in PDF, creating default annotation`);
+                        const defaultAnnotation: PDFAnnotation = {
+                            type: 'highlight',
+                            uuid,
+                            pageIndex: 0,
+                            rects: [{
+                                x: 50,
+                                y: 50 + (index * 20), // Stagger annotations if multiple terms not found
+                                width: 100,
+                                height: 15
+                            }],
+                            color,
+                            author: 'Bias Checker',
+                            dateCreated: new Date().toISOString(),
+                            dateModified: new Date().toISOString(),
+                            content: `Biased term (${term.category}): ${term.term}\nSuggested alternatives: ${term.alternatives?.join(', ') || 'No alternatives provided'}\n(Note: Exact position in PDF not found)`,
+                        };
+                        newAnnotations.push(defaultAnnotation);
+                    }
+                } catch (termError) {
+                    conso1le.error(`Error processing term "${term.term}":`, termError);
+                }
+            }
 
             // Combine existing and new annotations
             const combinedAnnotations = [...filteredAnnotations, ...newAnnotations];

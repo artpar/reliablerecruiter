@@ -41,7 +41,7 @@ interface SearchResult {
  * @param options Additional options
  * @returns Promise with the result
  */
-async function executePDFAnnotationTask<T>(
+async function executePDFTask<T>(
     action: string,
     data: ArrayBuffer,
     options?: Record<string, any>
@@ -93,7 +93,7 @@ export const extractText = async (pdfData: ArrayBuffer): Promise<string> => {
         }
 
         // Use the service worker to process the PDF
-        return await executePDFAnnotationTask<string>('extract', pdfData);
+        return await executePDFTask<string>('extract', pdfData);
     } catch (error) {
         console.error('Error extracting text from PDF:', error);
 
@@ -150,7 +150,7 @@ export const searchText = async (
         }
 
         // Use the service worker to search the PDF
-        return await executePDFAnnotationTask<SearchResult[]>('search', pdfData, {
+        return await executePDFTask<SearchResult[]>('search', pdfData, {
             searchText,
             ...options
         });
@@ -262,7 +262,7 @@ export const extractAnnotations = async (pdfData: ArrayBuffer): Promise<PDFAnnot
         }
 
         // Use the service worker to extract annotations
-        return await executePDFAnnotationTask<PDFAnnotation[]>('extractAnnotations', pdfData);
+        return await executePDFTask<PDFAnnotation[]>('extractAnnotations', pdfData);
     } catch (error) {
         console.error('Error extracting annotations:', error);
 
@@ -287,7 +287,7 @@ export const saveAnnotations = async (
         }
 
         // Use the service worker to save annotations
-        return await executePDFAnnotationTask<ArrayBuffer>('saveAnnotations', pdfData, { annotations });
+        return await executePDFTask<ArrayBuffer>('saveAnnotations', pdfData, { annotations });
     } catch (error) {
         console.error('Error saving annotations:', error);
 

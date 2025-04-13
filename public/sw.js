@@ -310,7 +310,7 @@ self.addEventListener('fetch', (event) => {
 });
 
 // Handle messages from clients
-self.addEventListener('message', (event) => {
+self.addEventListener('message', async (event) => {
     // Get the client that sent the message
     const client = event.source;
 
@@ -325,11 +325,11 @@ self.addEventListener('message', (event) => {
             break;
 
         case 'PDF_TASK':
-            handlePDFTask(event.data.payload, event.ports[0]);
+            await handlePDFTask(event.data.payload, event.ports[0]);
             break;
 
         case 'PDF_ANNOTATION_TASK':
-            handlePDFAnnotationTask(event.data.payload, event.ports[0]);
+            await handlePDFAnnotationTask(event.data.payload, event.ports[0]);
             break;
 
         default:
