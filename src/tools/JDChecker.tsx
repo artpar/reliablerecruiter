@@ -10,8 +10,8 @@ import PDFAnnotator, {PDFAnnotation} from '../components/PDFAnnotator';
 import useToast from '../hooks/useToast';
 import {analyzeBiasedLanguage} from '../services/AnalyzeBiasedLanguage';
 import {BiasHighlighter} from "./jd-checker/BiasHighlighter";
+import {createBiasAnnotations} from "./CreateBiasAnnotations";
 
-import {searchText} from '../services/PDFAnnotationService';
 
 // No need to initialize here - PDFAnnotator handles it internally now
 // The worker source is set in the PDFAnnotator component and will be used in extractBasicTextFromPDF
@@ -22,9 +22,7 @@ const JDChecker: React.FC = () => {
     const [jobDescription, setJobDescription] = useState<string>('');
     const [improvedJobDescription, setImprovedJobDescription] = useState<string>('');
     const [analysis, setAnalysis] = useState<{
-        biasedTerms: any[];
-        score: number;
-        categoryScores?: Record<string, number>
+        biasedTerms: any[]; score: number; categoryScores?: Record<string, number>
     } | null>(null);
     const [fileId, setFileId] = useState<string | null>(null);
     const [isPDF, setIsPDF] = useState(false);
@@ -109,7 +107,7 @@ const JDChecker: React.FC = () => {
 
             // Set the worker source path before using PDF.js
             if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-                pdfjsLib.GlobalWorkerOptions.workerSrc = window.pdfjsWorkerSrc || 'https://unpkg.com/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
+                pdfjsLib.GlobalWorkerOptions.workerSrc = window.pdfjsWorkerSrc || 'https://unpkg.com/pdfjs-dist@5.1.91/build/pdf.worker.min.mjs';
             }
 
             // Create a copy of the ArrayBuffer to prevent detached buffer issues
@@ -205,10 +203,28 @@ const JDChecker: React.FC = () => {
             // If it's a PDF, we'll create bias annotations in the PDF
             if (isPDF && fileId) {
                 console.log("Creating bias annotations for", result.biasedTerms.length, "biased terms");
-                createBiasAnnotations(result.biasedTerms);
+                try {
+                    // Get the file content to search for term positions
+                    const file = files.find(f => f.id === fileId);
+                    if (!file || !(file.content instanceof ArrayBuffer)) {
+                        console.error('PDF file content not available');
+                        return;
+                    }
+                    const filteredAnnotations = pdfAnnotations.filter(ann => !(ann.type === 'highlight' &&
+                        ann.uuid && ann.uuid.startsWith('bias-')));
+                    const newAnnotations = await createBiasAnnotations(result.biasedTerms, file);
+                    const newPdfAnnotations = [...filteredAnnotations, ...newAnnotations];
+                    setPdfAnnotations(newPdfAnnotations);
+                    showToast(`Created ${newAnnotations.length} annotations for biased terms`, 'info');
+
+                } catch (error) {
+                    console.error('Error creating bias annotations:', error);
+                    showToast('Error highlighting biased terms in PDF', 'error');
+                }
+
 
                 // Generate a new key to force PDFAnnotator to re-render with a fresh instance
-                setPdfViewerKey(`pdf-viewer-${Date.now()}`);
+                // setPdfViewerKey(`pdf-viewer-${Date.now()}`);
             }
         } catch (error) {
             console.error('Analysis error:', error);
@@ -218,178 +234,6 @@ const JDChecker: React.FC = () => {
         }
     };
 
-    // Convert biased terms to PDF annotations
-    const createBiasAnnotations = async (biasedTerms: any[]) => {
-        // Check if biasedTerms is valid
-        if (!biasedTerms || !Array.isArray(biasedTerms) || biasedTerms.length === 0) {
-            console.log('No biased terms to highlight');
-            return;
-        }
-
-        try {
-            // Remove existing bias annotations
-            const filteredAnnotations = pdfAnnotations.filter(ann =>
-                !(ann.type === 'highlight' && ann.uuid && ann.uuid.startsWith('bias-')));
-
-            // Get the file content to search for term positions
-            const file = files.find(f => f.id === fileId);
-            if (!file || !(file.content instanceof ArrayBuffer)) {
-                console.error('PDF file content not available');
-                return;
-            }
-
-            // Import the PDFAnnotationService
-
-            // Create new bias highlight annotations
-            const newAnnotations: PDFAnnotation[] = [];
-
-            // Process each biased term to find its position in the PDF
-            for (const [index, term] of biasedTerms.entries()) {
-                try {
-                    // Create a unique ID for this annotation
-                    const uuid = `bias-${term.term}-${Date.now()}-${index}`;
-
-                    // Get category-specific color
-                    const color = getColorForCategory(term.category);
-
-                    // Search for the term in the PDF to get its position
-                    const searchResults = await searchText(file.content as ArrayBuffer, term.term, {
-                        matchCase: false,
-                        wholeWord: true
-                    });
-
-                    if (searchResults && searchResults.length > 0) {
-                        // Create an annotation for each occurrence of the term
-                        for (const result of searchResults) {
-                            const annotation: PDFAnnotation = {
-                                annotationType: "/HIGHLIGHT",
-                                uuid: `${uuid}-${result.pageNumber}`,
-                                pageId: result.pageNumber + 1, // Convert from 1-based to 0-based indexing
-                                rect: {
-                                    x: result.rect.x,
-                                    y: result.rect.y,
-                                    width: result.rect.width,
-                                    height: result.rect.height
-                                },
-                                color,
-                                author: 'Bias Checker',
-                                dateCreated: new Date().toISOString(),
-                                dateModified: new Date().toISOString(),
-                                content: `Biased term (${term.category}): ${term.term}\nSuggested alternatives: ${term.alternatives?.join(', ') || 'No alternatives provided'}`,
-                            };
-                            newAnnotations.push({
-                                "annotationType": "/Highlight",
-                                "uuid": `${uuid}-${result.pageNumber}`,
-                                "pageId": result.pageNumber + 1,
-                                "dateCreated": new Date().toISOString(),
-                                "dateModified": new Date().toISOString(),
-                                "author": "Bias Checker",
-                                "rect": [result.rect.x, result.rect.y, result.rect.width + result.rect.x, result.rect.height + result.rect.y],
-                                "bbox": [result.rect.x, result.rect.y, result.rect.width + result.rect.x, result.rect.height + result.rect.y],
-                                "matrix": [
-                                    1,
-                                    0,
-                                    0,
-                                    1,
-                                    0,
-                                    0
-                                ],
-                                "quadPoints": [
-                                    127.10447064568018,
-                                    686.9033508300781,
-                                    242.34671020507812,
-                                    686.9033508300781,
-                                    127.10447064568018,
-                                    675.9658508300781,
-                                    242.34671020507812,
-                                    675.9658508300781
-                                ],
-                                "color": [
-                                    0,
-                                    0,
-                                    0,
-                                    0.5
-                                ],
-                                "strokeWidth": 2,
-                                "strokeDashGap": [
-                                    3,
-                                    0
-                                ]
-                            });
-                        }
-                    } else {
-                        // If term not found, create a default annotation on the first page
-                        console.log(`Term "${term.term}" not found in PDF, creating default annotation`);
-                        const defaultAnnotation: PDFAnnotation = {
-                            "annotationType": "/Highlight",
-                            "uuid": `${uuid}-${result.pageNumber}`,
-                            "pageId": result.pageNumber + 2,
-                            "dateCreated": new Date().toISOString(),
-                            "dateModified": new Date().toISOString(),
-                            "author": "Bias Checker",
-                            "rect": [result.rect.x, result.rect.y, result.rect.width + result.rect.x, result.rect.height + result.rect.y],
-                            "bbox": [result.rect.x, result.rect.y, result.rect.width + result.rect.x, result.rect.height + result.rect.y],
-                            "matrix": [
-                                1,
-                                0,
-                                0,
-                                1,
-                                0,
-                                0
-                            ],
-                            "quadPoints": [
-                                127.10447064568018,
-                                686.9033508300781,
-                                242.34671020507812,
-                                686.9033508300781,
-                                127.10447064568018,
-                                675.9658508300781,
-                                242.34671020507812,
-                                675.9658508300781
-                            ],
-                            "color": [
-                                0,
-                                0,
-                                0,
-                                0.5
-                            ],
-                            "strokeWidth": 2,
-                            "strokeDashGap": [
-                                3,
-                                0
-                            ]
-                        };
-                        newAnnotations.push(defaultAnnotation);
-                    }
-                } catch (termError) {
-                    console.error(`Error processing term "${term.term}":`, termError);
-                }
-            }
-
-            // Combine existing and new annotations
-            const combinedAnnotations = [...filteredAnnotations, ...newAnnotations];
-            setPdfAnnotations(combinedAnnotations);
-
-            showToast(`Created ${newAnnotations.length} annotations for biased terms`, 'info');
-        } catch (error) {
-            console.error('Error creating bias annotations:', error);
-            showToast('Error highlighting biased terms in PDF', 'error');
-        }
-    };
-
-    // Get color for bias category
-    const getColorForCategory = (category: string): string => {
-        switch (category?.toLowerCase()) {
-            case 'gender':
-                return 'rgba(255, 105, 180, 0.3)'; // Pink
-            case 'age':
-                return 'rgba(100, 149, 237, 0.3)'; // Blue
-            case 'race':
-                return 'rgba(147, 112, 219, 0.3)'; // Purple
-            default:
-                return 'rgba(255, 255, 0, 0.3)'; // Yellow
-        }
-    };
 
     const handleUpdateImprovedText = (updatedText: string) => {
         setImprovedJobDescription(updatedText);
@@ -413,16 +257,12 @@ const JDChecker: React.FC = () => {
             if (isPDF) {
                 // For PDFs, we'll store the improved description in metadata
                 const metadata = {
-                    ...file.metadata,
-                    improvedDescription: improvedJobDescription,
-                    lastModified: Date.now()
+                    ...file.metadata, improvedDescription: improvedJobDescription, lastModified: Date.now()
                 };
 
                 dispatch({
-                    type: 'UPDATE_FILE_METADATA',
-                    payload: {
-                        id: fileId,
-                        metadata
+                    type: 'UPDATE_FILE_METADATA', payload: {
+                        id: fileId, metadata
                     }
                 });
 
@@ -430,10 +270,8 @@ const JDChecker: React.FC = () => {
             } else {
                 // For text files, just update the content
                 dispatch({
-                    type: 'UPDATE_FILE_CONTENT',
-                    payload: {
-                        id: fileId,
-                        content: improvedJobDescription,
+                    type: 'UPDATE_FILE_CONTENT', payload: {
+                        id: fileId, content: improvedJobDescription,
                     },
                 });
 
@@ -460,16 +298,12 @@ const JDChecker: React.FC = () => {
 
             // Update the annotations in the file metadata
             const metadata = {
-                ...file.metadata,
-                annotations,
-                lastModified: Date.now()
+                ...file.metadata, annotations, lastModified: Date.now()
             };
 
             dispatch({
-                type: 'UPDATE_FILE_METADATA',
-                payload: {
-                    id: pdfFileId,
-                    metadata
+                type: 'UPDATE_FILE_METADATA', payload: {
+                    id: pdfFileId, metadata
                 }
             });
 
@@ -487,150 +321,130 @@ const JDChecker: React.FC = () => {
 
     const renderTabs = (): TabItem[] => {
         const tabs: TabItem[] = [{
-            id: 'editor',
-            label: 'Editor',
-            content: (
-                <div className="space-y-4">
-                    {isPDF && fileId ? (
-                        <div className="flex h-full min-h-[400px]">
-                            <PDFAnnotator
-                                key={pdfViewerKey}
-                                fileId={fileId}
-                                initialAnnotations={pdfAnnotations}
-                                onSave={handleSavePDFAnnotations}
-                                className="600px"
-                            />
-                        </div>
-                    ) : (
-                        <TextArea
-                            label="Job Description"
-                            value={jobDescription}
-                            onChange={(e) => setJobDescription(e.target.value)}
-                            placeholder="Paste your job description here or upload a file..."
-                            rows={15}
-                        />
-                    )}
+            id: 'editor', label: 'Editor', content: (<div className="space-y-4">
+                {isPDF && fileId ? (<div className="flex h-full min-h-[400px]">
+                    <PDFAnnotator
+                        key={pdfViewerKey}
+                        fileId={fileId}
+                        initialAnnotations={pdfAnnotations}
+                        onSave={handleSavePDFAnnotations}
+                        className="600px"
+                    />
+                </div>) : (<TextArea
+                    label="Job Description"
+                    value={jobDescription}
+                    onChange={(e) => setJobDescription(e.target.value)}
+                    placeholder="Paste your job description here or upload a file..."
+                    rows={15}
+                />)}
 
-                    <div className="flex justify-between">
-                        <FileUpload
-                            id="jd-file-upload"
-                            label="Upload Job Description"
-                            acceptedFileTypes=".txt,.pdf,.docx,.doc"
-                            helperText="Supported file types: .txt, .pdf, .docx, .doc"
-                            onUpload={handleFileUpload}
-                        />
-                        <Button
-                            variant="primary"
-                            onClick={handleAnalyze}
-                            isLoading={loading}
-                            disabled={!jobDescription.trim()}
-                        >
-                            Analyze for Bias
-                        </Button>
-                    </div>
+                <div className="flex justify-between">
+                    <FileUpload
+                        id="jd-file-upload"
+                        label="Upload Job Description"
+                        acceptedFileTypes=".txt,.pdf,.docx,.doc"
+                        helperText="Supported file types: .txt, .pdf, .docx, .doc"
+                        onUpload={handleFileUpload}
+                    />
+                    <Button
+                        variant="primary"
+                        onClick={handleAnalyze}
+                        isLoading={loading}
+                        disabled={!jobDescription.trim()}
+                    >
+                        Analyze for Bias
+                    </Button>
                 </div>
-            ),
+            </div>),
         }];
 
         if (analysis) {
             tabs.push({
-                id: 'analysis',
-                label: 'Analysis Results',
-                content: (
-                    <div className="space-y-6">
-                        <div className="flex justify-between items-center">
-                            <h2 className="text-xl font-semibold text-neutral-800">
-                                Bias Score: {analysis.score}/100
-                            </h2>
-                            <div className="text-sm text-neutral-600">
-                                {analysis.biasedTerms && Array.isArray(analysis.biasedTerms) ? analysis.biasedTerms.length : 0} potential
-                                issues found
-                            </div>
+                id: 'analysis', label: 'Analysis Results', content: (<div className="space-y-6">
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-xl font-semibold text-neutral-800">
+                            Bias Score: {analysis.score}/100
+                        </h2>
+                        <div className="text-sm text-neutral-600">
+                            {analysis.biasedTerms && Array.isArray(analysis.biasedTerms) ? analysis.biasedTerms.length : 0} potential
+                            issues found
                         </div>
-
-                        {isPDF ? (
-                            <div className="bg-neutral-50 border border-neutral-200 rounded-md p-4">
-                                <p className="text-sm text-neutral-600 mb-3">
-                                    Biased terms have been highlighted directly in the PDF. Return to the Editor tab to
-                                    view them.
-                                </p>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                        const editorTab = document.getElementById('tab-editor');
-                                        if (editorTab) editorTab.click();
-                                    }}
-                                >
-                                    Back to PDF Viewer
-                                </Button>
-                            </div>
-                        ) : (
-                            <BiasHighlighter text={jobDescription} biasedTerms={analysis.biasedTerms}/>
-                        )}
                     </div>
-                ),
+
+                    {isPDF ? (<div className="bg-neutral-50 border border-neutral-200 rounded-md p-4">
+                        <p className="text-sm text-neutral-600 mb-3">
+                            Biased terms have been highlighted directly in the PDF. Return to the Editor tab to
+                            view them.
+                        </p>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                                const editorTab = document.getElementById('tab-editor');
+                                if (editorTab) editorTab.click();
+                            }}
+                        >
+                            Back to PDF Viewer
+                        </Button>
+                    </div>) : (<BiasHighlighter text={jobDescription} biasedTerms={analysis.biasedTerms}/>)}
+                </div>),
             });
 
             tabs.push({
                 id: 'improved',
                 label: 'Improved Version',
-                content: (
-                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                        <div className="lg:col-span-3">
-                            <TextArea
-                                label="Improved Job Description"
-                                value={improvedJobDescription}
-                                onChange={(e) => setImprovedJobDescription(e.target.value)}
-                                rows={15}
-                            />
-                            <div className="mt-4 flex justify-end">
-                                <Button
-                                    variant="primary"
-                                    onClick={handleSaveImproved}
-                                    isLoading={loading}
-                                >
-                                    {isPDF ? 'Save with PDF' : 'Save Improved Version'}
-                                </Button>
-                            </div>
-                        </div>
-
-                        <div className="lg:col-span-2">
-                            <h3 className="text-lg font-medium text-neutral-800 mb-3">
-                                Suggestions
-                            </h3>
-
-                            <SuggestionList
-                                biasedTerms={analysis.biasedTerms}
-                                originalText={jobDescription}
-                                improvedText={improvedJobDescription}
-                                onUpdate={handleUpdateImprovedText}
-                            />
+                content: (<div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                    <div className="lg:col-span-3">
+                        <TextArea
+                            label="Improved Job Description"
+                            value={improvedJobDescription}
+                            onChange={(e) => setImprovedJobDescription(e.target.value)}
+                            rows={15}
+                        />
+                        <div className="mt-4 flex justify-end">
+                            <Button
+                                variant="primary"
+                                onClick={handleSaveImproved}
+                                isLoading={loading}
+                            >
+                                {isPDF ? 'Save with PDF' : 'Save Improved Version'}
+                            </Button>
                         </div>
                     </div>
-                ),
+
+                    <div className="lg:col-span-2">
+                        <h3 className="text-lg font-medium text-neutral-800 mb-3">
+                            Suggestions
+                        </h3>
+
+                        <SuggestionList
+                            biasedTerms={analysis.biasedTerms}
+                            originalText={jobDescription}
+                            improvedText={improvedJobDescription}
+                            onUpdate={handleUpdateImprovedText}
+                        />
+                    </div>
+                </div>),
             });
         }
 
         return tabs;
     };
 
-    return (
-        <div className="container mx-auto py-6 px-4">
-            <div className="mb-6">
-                <h1 className="text-2xl font-bold text-neutral-800">Inclusive Job Description Checker</h1>
-                <p className="text-neutral-600 mt-1">
-                    Analyze job descriptions for potentially biased language and get suggestions for more inclusive
-                    alternatives.
-                    {isPDF && " You can annotate the PDF directly to highlight and edit biased terms."}
-                </p>
-            </div>
-
-            <Card>
-                <Tabs tabs={renderTabs()}/>
-            </Card>
+    return (<div className="container mx-auto py-6 px-4">
+        <div className="mb-6">
+            <h1 className="text-2xl font-bold text-neutral-800">Inclusive Job Description Checker</h1>
+            <p className="text-neutral-600 mt-1">
+                Analyze job descriptions for potentially biased language and get suggestions for more inclusive
+                alternatives.
+                {isPDF && " You can annotate the PDF directly to highlight and edit biased terms."}
+            </p>
         </div>
-    );
+
+        <Card>
+            <Tabs tabs={renderTabs()}/>
+        </Card>
+    </div>);
 };
 
 // Add window type declaration

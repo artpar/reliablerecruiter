@@ -14,7 +14,7 @@ export const extractBasicTextFromPDF = async (pdfData: ArrayBuffer): Promise<str
 
     // Set the worker source path before using PDF.js
     if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = window.pdfjsWorkerSrc || 'https://unpkg.com/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
+      pdfjsLib.GlobalWorkerOptions.workerSrc = window.pdfjsWorkerSrc || 'https://unpkg.com/pdfjs-dist@5.1.91/build/pdf.worker.min.mjs';
     }
 
     // Create a copy of the ArrayBuffer to prevent detached buffer issues

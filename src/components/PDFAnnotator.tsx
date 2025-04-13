@@ -6,7 +6,7 @@ import useToast from '../hooks/useToast';
 
 // Set the PDF.js worker source path globally only once
 if (typeof window !== 'undefined' && !window.pdfjsWorkerSrc) {
-    window.pdfjsWorkerSrc = 'https://unpkg.com/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
+    window.pdfjsWorkerSrc = 'https://unpkg.com/pdfjs-dist@5.1.91/build/pdf.worker.min.mjs';
     console.log('PDF.js worker source path set:', window.pdfjsWorkerSrc);
 }
 
@@ -70,6 +70,7 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
                 viewerRef.current.closePdfAsync().catch(e => {
                     console.error('Error closing previous viewer:', e);
                 });
+                viewerRef.current.destroy()
                 viewerRef.current = null;
             } catch (err) {
                 console.error('Error in cleanup:', err);
@@ -80,7 +81,14 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
     useEffect(() => {
         console.log('Pdf viewer:', viewerRef.current, initialAnnotations);
         if (viewerRef.current) {
-            viewerRef.current.importAnnotationsAsync(initialAnnotations).then(e => {
+            const transformedAnnotations = initialAnnotations.map(e => {
+                console.log("transformed annotation", e, viewerRef.current._pageService.pages);
+                return {
+                    ...e,
+                    pageId: viewerRef.current._pageService.pages[e.page].id
+                }
+            })
+            viewerRef.current.importAnnotationsAsync(transformedAnnotations).then(e => {
                 console.log('importAnnotationsAsync');
             })
         }
@@ -185,11 +193,14 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
 
                     // Open the PDF
                     addDebugLog('Opening PDF...');
-                    await pdfViewer.openPdfAsync(pdfData);
+                    await pdfViewer.openPdfAsync(pdfData).then((loadResult) => {
+                        console.log("openPdf result", loadResult);
+                    });
 
                     if (!isMounted) {
                         addDebugLog('Component unmounted after opening PDF');
                         pdfViewer.closePdfAsync().catch(console.error);
+                        pdfViewer.destroy()
                         return;
                     }
 
@@ -206,6 +217,7 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
                     if (viewerRef.current) {
                         try {
                             viewerRef.current.closePdfAsync().catch(console.error);
+                            viewerRef.current.destroy()
                             viewerRef.current = null;
                         } catch (e) {
                             console.error('Error closing viewer after failed init:', e);
@@ -235,6 +247,7 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
             if (viewerRef.current) {
                 try {
                     viewerRef.current.closePdfAsync().catch(console.error);
+                    viewerRef.current.destroy();
                 } catch (err) {
                     console.error('Error during unmount cleanup:', err);
                 }

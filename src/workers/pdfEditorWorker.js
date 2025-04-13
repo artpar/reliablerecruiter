@@ -2,8 +2,8 @@
 import * as pdfjs from 'pdfjs-dist';
 
 // Set the worker source path
-const workerVersion = '4.10.38';
-pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs`;
+const workerVersion = '5.1.91';
+pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@5.1.91/build/pdf.worker.min.mjs`;
 
 // Listen for messages from the main thread
 self.onmessage = async (event) => {
