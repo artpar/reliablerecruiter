@@ -1,5 +1,5 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {AnnotationBase, TsPdfViewer, TsPdfViewerOptions} from 'ts-pdf';
+import {AnnotationDto, TsPdfViewer, TsPdfViewerOptions} from 'ts-pdf';
 import Card from './common/Card';
 import {useFile} from '../context/FileContext';
 import useToast from '../hooks/useToast';
@@ -11,7 +11,7 @@ if (typeof window !== 'undefined' && !window.pdfjsWorkerSrc) {
 }
 
 // Re-export ts-pdf annotation types for external use
-export type PDFAnnotation = AnnotationBase;
+export type PDFAnnotation = AnnotationDto;
 
 // Define window property for TypeScript
 declare global {
@@ -76,6 +76,16 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
             }
         }
     }, [fileId]);
+
+    useEffect(() => {
+        console.log('Pdf viewer:', viewerRef.current, initialAnnotations);
+        if (viewerRef.current) {
+            viewerRef.current.importAnnotationsAsync(initialAnnotations).then(e => {
+                console.log('importAnnotationsAsync');
+            })
+        }
+    }, [initialAnnotations]);
+
 
     // Initialize PDF viewer
     useEffect(() => {
@@ -142,6 +152,9 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
                     disableCloseAction: false,
                     disableRotation: false,
                     workerSource: window.pdfjsWorkerSrc,
+                    annotChangeCallback: detail => {
+                        console.log("AnnotationChange Callback", initialAnnotations, detail);
+                    }
                 };
 
                 addDebugLog('Creating PDF viewer');
@@ -230,8 +243,7 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
     }, []);
 
     if (error) {
-        return (
-            <Card className="pdf-annotator-container" style={{height}}>
+        return (<Card className="pdf-annotator-container" style={{height}}>
                 <div className="pdf-error-container">
                     <p className="error-message">{error}</p>
                     <div className="debug-info">
@@ -244,20 +256,18 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
                         {/*</ul>*/}
                     </div>
                 </div>
-            </Card>
-        );
+            </Card>);
     }
 
-    return (
-        <div className={className + " pdf-annotator-container h-full"} style={{height, overflow: 'hidden', width: '100%'}}>
+    return (<div className={className + " pdf-annotator-container h-full"}
+                 style={{height, overflow: 'hidden', width: '100%'}}>
             <div
                 id={containerId.current}
                 ref={containerRef}
                 className="pdf-content h-full"
                 style={{minHeight: '400px', width: '100%', position: 'relative'}}
             >
-                {loading && (
-                    <div className="pdf-loading" style={{
+                {loading && (<div className="pdf-loading" style={{
                         position: 'absolute',
                         top: 0,
                         left: 0,
@@ -270,11 +280,9 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
                         zIndex: 10
                     }}>
                         <p>Loading PDF... Please wait</p>
-                    </div>
-                )}
+                    </div>)}
             </div>
-        </div>
-    );
+        </div>);
 };
 
 export default PDFAnnotator;

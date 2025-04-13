@@ -262,41 +262,102 @@ const JDChecker: React.FC = () => {
                         // Create an annotation for each occurrence of the term
                         for (const result of searchResults) {
                             const annotation: PDFAnnotation = {
-                                type: 'highlight',
+                                annotationType: "/HIGHLIGHT",
                                 uuid: `${uuid}-${result.pageNumber}`,
-                                pageIndex: result.pageNumber - 1, // Convert from 1-based to 0-based indexing
-                                rects: [{
+                                pageId: result.pageNumber + 1, // Convert from 1-based to 0-based indexing
+                                rect: {
                                     x: result.rect.x,
                                     y: result.rect.y,
                                     width: result.rect.width,
                                     height: result.rect.height
-                                }],
+                                },
                                 color,
                                 author: 'Bias Checker',
                                 dateCreated: new Date().toISOString(),
                                 dateModified: new Date().toISOString(),
                                 content: `Biased term (${term.category}): ${term.term}\nSuggested alternatives: ${term.alternatives?.join(', ') || 'No alternatives provided'}`,
                             };
-                            newAnnotations.push(annotation);
+                            newAnnotations.push({
+                                "annotationType": "/Highlight",
+                                "uuid": `${uuid}-${result.pageNumber}`,
+                                "pageId": result.pageNumber + 1,
+                                "dateCreated": new Date().toISOString(),
+                                "dateModified": new Date().toISOString(),
+                                "author": "Bias Checker",
+                                "rect": [result.rect.x, result.rect.y, result.rect.width + result.rect.x, result.rect.height + result.rect.y],
+                                "bbox": [result.rect.x, result.rect.y, result.rect.width + result.rect.x, result.rect.height + result.rect.y],
+                                "matrix": [
+                                    1,
+                                    0,
+                                    0,
+                                    1,
+                                    0,
+                                    0
+                                ],
+                                "quadPoints": [
+                                    127.10447064568018,
+                                    686.9033508300781,
+                                    242.34671020507812,
+                                    686.9033508300781,
+                                    127.10447064568018,
+                                    675.9658508300781,
+                                    242.34671020507812,
+                                    675.9658508300781
+                                ],
+                                "color": [
+                                    0,
+                                    0,
+                                    0,
+                                    0.5
+                                ],
+                                "strokeWidth": 2,
+                                "strokeDashGap": [
+                                    3,
+                                    0
+                                ]
+                            });
                         }
                     } else {
                         // If term not found, create a default annotation on the first page
                         console.log(`Term "${term.term}" not found in PDF, creating default annotation`);
                         const defaultAnnotation: PDFAnnotation = {
-                            type: 'highlight',
-                            uuid,
-                            pageIndex: 0,
-                            rects: [{
-                                x: 50,
-                                y: 50 + (index * 20), // Stagger annotations if multiple terms not found
-                                width: 100,
-                                height: 15
-                            }],
-                            color,
-                            author: 'Bias Checker',
-                            dateCreated: new Date().toISOString(),
-                            dateModified: new Date().toISOString(),
-                            content: `Biased term (${term.category}): ${term.term}\nSuggested alternatives: ${term.alternatives?.join(', ') || 'No alternatives provided'}\n(Note: Exact position in PDF not found)`,
+                            "annotationType": "/Highlight",
+                            "uuid": `${uuid}-${result.pageNumber}`,
+                            "pageId": result.pageNumber + 2,
+                            "dateCreated": new Date().toISOString(),
+                            "dateModified": new Date().toISOString(),
+                            "author": "Bias Checker",
+                            "rect": [result.rect.x, result.rect.y, result.rect.width + result.rect.x, result.rect.height + result.rect.y],
+                            "bbox": [result.rect.x, result.rect.y, result.rect.width + result.rect.x, result.rect.height + result.rect.y],
+                            "matrix": [
+                                1,
+                                0,
+                                0,
+                                1,
+                                0,
+                                0
+                            ],
+                            "quadPoints": [
+                                127.10447064568018,
+                                686.9033508300781,
+                                242.34671020507812,
+                                686.9033508300781,
+                                127.10447064568018,
+                                675.9658508300781,
+                                242.34671020507812,
+                                675.9658508300781
+                            ],
+                            "color": [
+                                0,
+                                0,
+                                0,
+                                0.5
+                            ],
+                            "strokeWidth": 2,
+                            "strokeDashGap": [
+                                3,
+                                0
+                            ]
                         };
                         newAnnotations.push(defaultAnnotation);
                     }
