@@ -30,6 +30,7 @@ interface PDFAnnotatorProps {
     height?: string;
     className?: string;
     initialAnnotations?: PDFAnnotation[];
+    key?: string; // Added key prop for React to detect changes
 }
 
 const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
@@ -54,35 +55,30 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
     const [error, setError] = useState<string | null>(null);
 
     const containerRef = useRef<HTMLDivElement>(null);
-    // Track component mount state to prevent state updates after unmount
-    const isMountedRef = useRef<boolean>(true);
-    // Generate a unique ID for this instance to prevent shadow DOM conflicts
+    // Generate a unique ID for this instance
     const instanceId = useRef<string>(`pdf-container-${fileId}-${Date.now()}`);
+    console.log("PDFAnnotator", instanceId, initialAnnotations);
 
     // Cleanup function to be called on component unmount
     useEffect(() => {
         return () => {
-            isMountedRef.current = false;
-
-            // Additional cleanup for the container element
-            const container = document.querySelector(`#${instanceId.current}`);
-            if (container && (container as any).shadowRoot) {
-                console.log('Cleanup on unmount: container has shadow root');
+            // Close the viewer if it exists
+            if (viewer) {
                 try {
-                    if (viewer) {
-                        viewer.closePdfAsync().catch(console.error);
-                    }
+                    console.log('Closing PDF viewer on unmount');
+                    viewer.closePdfAsync().catch(console.error);
                 } catch (err) {
-                    console.warn('Error during unmount cleanup:', err);
+                    console.warn('Error closing PDF viewer during unmount:', err);
                 }
             }
         };
-    }, [fileId, viewer]);
+    }, [viewer]);
 
     // Initialize PDF viewer
     useEffect(() => {
         if (!containerRef.current || !fileId) return;
 
+        // Get the file
         const file = files.find(f => f.id === fileId);
         if (!file) {
             showToast('File not found', 'error');
@@ -90,6 +86,8 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
             setError('File not found');
             return;
         }
+
+
 
         // Check if it's a PDF
         if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
@@ -112,7 +110,7 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
             workerSource: window.pdfjsWorkerSrc, // Explicitly provide the worker source
         };
 
-        // Create a variable to track if the component is mounted
+        // Create a variable to track if the component is still mounted
         let isMounted = true;
 
         try {
@@ -124,6 +122,7 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
                 if (!isMounted) return;
 
                 try {
+                    // Create a new viewer instance
                     pdfViewer = new TsPdfViewer(options);
 
                     // If we have the content as ArrayBuffer, convert to Uint8Array
@@ -460,6 +459,7 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
             <div
                 id={instanceId.current}
                 ref={containerRef}
+                key={instanceId.current} // Add key to force React to recreate this element
                 className="pdf-content h-full"
                 style={{minHeight: '400px', width: '100%', position: 'relative'}}
             >

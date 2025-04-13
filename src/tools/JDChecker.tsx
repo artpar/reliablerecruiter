@@ -17,13 +17,15 @@ const JDChecker: React.FC = () => {
     const { files, dispatch } = useFile();
     const { showToast } = useToast();
 
-    const [jobDescription, setJobDescription] = useState('');
-    const [improvedJobDescription, setImprovedJobDescription] = useState('');
+    const [jobDescription, setJobDescription] = useState<string>('');
+    const [improvedJobDescription, setImprovedJobDescription] = useState<string>('');
     const [analysis, setAnalysis] = useState<{ biasedTerms: any[]; score: number; categoryScores?: Record<string, number> } | null>(null);
     const [fileId, setFileId] = useState<string | null>(null);
     const [isPDF, setIsPDF] = useState(false);
     const [pdfAnnotations, setPdfAnnotations] = useState<PDFAnnotation[]>([]);
     const [loading, setLoading] = useState(false);
+    // Add a key state to force re-rendering of PDFAnnotator when needed
+    const [pdfViewerKey, setPdfViewerKey] = useState<string>(`pdf-viewer-${Date.now()}`);
 
     // Effect to process uploaded file
     useEffect(() => {
@@ -198,6 +200,9 @@ const JDChecker: React.FC = () => {
             if (isPDF && fileId) {
                 console.log("Creating bias annotations for", result.biasedTerms.length, "biased terms");
                 createBiasAnnotations(result.biasedTerms);
+                
+                // Generate a new key to force PDFAnnotator to re-render with a fresh instance
+                setPdfViewerKey(`pdf-viewer-${Date.now()}`);
             }
         } catch (error) {
             console.error('Analysis error:', error);
@@ -373,6 +378,7 @@ const JDChecker: React.FC = () => {
                     {isPDF && fileId ? (
                         <div className="flex h-full min-h-[400px]">
                             <PDFAnnotator
+                                key={pdfViewerKey}
                                 fileId={fileId}
                                 initialAnnotations={pdfAnnotations}
                                 onSave={handleSavePDFAnnotations}
