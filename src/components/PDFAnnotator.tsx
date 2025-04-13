@@ -317,12 +317,9 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
             } else {
                 // Default implementation to save annotations to file metadata
                 dispatch({
-                    type: 'UPDATE_FILE_METADATA',
-                    payload: {
-                        id: fileId,
-                        metadata: {
-                            annotations: currentAnnotations,
-                            lastModified: Date.now(),
+                    type: 'UPDATE_FILE_METADATA', payload: {
+                        id: fileId, metadata: {
+                            annotations: currentAnnotations, lastModified: Date.now(),
                         },
                     },
                 });
@@ -357,73 +354,67 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
     const handleSaveAnnotations = () => handleSave();
 
     if (error) {
-        return (
-            <Card className="pdf-annotator-container" style={{height}}>
-                <div className="pdf-error-container">
-                    <p className="error-message">{error}</p>
-                </div>
-            </Card>
-        );
+        return (<Card className="pdf-annotator-container" style={{height}}>
+            <div className="pdf-error-container">
+                <p className="error-message">{error}</p>
+            </div>
+        </Card>);
     }
 
     return (
-        <Card className={className + " pdf-annotator-container"} style={{height, overflow: 'hidden'}}>
+        <div className={className + " pdf-annotator-container h-full"} style={{height, overflow: 'hidden', width: '100%'}}>
             <div className="pdf-toolbar">
-                {!readOnly && (
-                    <div className="annotation-tools">
-                        <Button
-                            onClick={() => setAnnotationMode(annotationMode === 'highlight' ? null : 'highlight')}
-                            variant={annotationMode === 'highlight' ? 'primary' : 'secondary'}
-                            size="sm"
-                        >
-                            Highlight
-                        </Button>
-                        <Button
-                            onClick={() => setAnnotationMode(annotationMode === 'ink' ? null : 'ink')}
-                            variant={annotationMode === 'ink' ? 'primary' : 'secondary'}
-                            size="sm"
-                        >
-                            Ink
-                        </Button>
-                        <Button
-                            onClick={() => setAnnotationMode(annotationMode === 'square' ? null : 'square')}
-                            variant={annotationMode === 'square' ? 'primary' : 'secondary'}
-                            size="sm"
-                        >
-                            Square
-                        </Button>
-                        <Button
-                            onClick={() => setAnnotationMode(annotationMode === 'circle' ? null : 'circle')}
-                            variant={annotationMode === 'circle' ? 'primary' : 'secondary'}
-                            size="sm"
-                        >
-                            Circle
-                        </Button>
-                        <Button
-                            onClick={() => setAnnotationMode(annotationMode === 'text' ? null : 'text')}
-                            variant={annotationMode === 'text' ? 'primary' : 'secondary'}
-                            size="sm"
-                        >
-                            Text
-                        </Button>
-                        <Button
-                            onClick={() => setAnnotationMode(annotationMode === 'freetext' ? null : 'freetext')}
-                            variant={annotationMode === 'freetext' ? 'primary' : 'secondary'}
-                            size="sm"
-                        >
-                            Free Text
-                        </Button>
-                        {selectedAnnotation && (
-                            <Button
-                                onClick={handleDeleteAnnotation}
-                                variant="danger"
-                                size="sm"
-                            >
-                                Delete
-                            </Button>
-                        )}
-                    </div>
-                )}
+                {!readOnly && (<div className="annotation-tools">
+                    <Button
+                        onClick={() => setAnnotationMode(annotationMode === 'highlight' ? null : 'highlight')}
+                        variant={annotationMode === 'highlight' ? 'primary' : 'secondary'}
+                        size="sm"
+                    >
+                        Highlight
+                    </Button>
+                    <Button
+                        onClick={() => setAnnotationMode(annotationMode === 'ink' ? null : 'ink')}
+                        variant={annotationMode === 'ink' ? 'primary' : 'secondary'}
+                        size="sm"
+                    >
+                        Ink
+                    </Button>
+                    <Button
+                        onClick={() => setAnnotationMode(annotationMode === 'square' ? null : 'square')}
+                        variant={annotationMode === 'square' ? 'primary' : 'secondary'}
+                        size="sm"
+                    >
+                        Square
+                    </Button>
+                    <Button
+                        onClick={() => setAnnotationMode(annotationMode === 'circle' ? null : 'circle')}
+                        variant={annotationMode === 'circle' ? 'primary' : 'secondary'}
+                        size="sm"
+                    >
+                        Circle
+                    </Button>
+                    <Button
+                        onClick={() => setAnnotationMode(annotationMode === 'text' ? null : 'text')}
+                        variant={annotationMode === 'text' ? 'primary' : 'secondary'}
+                        size="sm"
+                    >
+                        Text
+                    </Button>
+                    <Button
+                        onClick={() => setAnnotationMode(annotationMode === 'freetext' ? null : 'freetext')}
+                        variant={annotationMode === 'freetext' ? 'primary' : 'secondary'}
+                        size="sm"
+                    >
+                        Free Text
+                    </Button>
+                    {selectedAnnotation && (<Button
+                        onClick={handleDeleteAnnotation}
+                        variant="danger"
+                        size="sm"
+                    >
+                        Delete
+                    </Button>)}
+                </div>)}
                 <div className="navigation-tools">
                     <Button
                         onClick={handlePreviousPage}
@@ -456,32 +447,27 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
                     >
                         Zoom Out
                     </Button>
-                    {onSave && (
-                        <Button
-                            onClick={handleSaveAnnotations}
-                            variant="success"
-                            size="sm"
-                            disabled={loading}
-                        >
-                            Save Annotations
-                        </Button>
-                    )}
+                    {onSave && (<Button
+                        onClick={handleSaveAnnotations}
+                        variant="success"
+                        size="sm"
+                        disabled={loading}
+                    >
+                        Save Annotations
+                    </Button>)}
                 </div>
             </div>
             <div
                 id={instanceId.current}
                 ref={containerRef}
-                className="pdf-content"
-                style={{height: 'calc(100% - 50px)', width: '100%', position: 'relative'}}
+                className="pdf-content h-full"
+                style={{minHeight: '400px', width: '100%', position: 'relative'}}
             >
-                {loading && (
-                    <div className="pdf-loading">
-                        <p>Loading PDF...</p>
-                    </div>
-                )}
+                {loading && (<div className="pdf-loading">
+                    <p>Loading PDF...</p>
+                </div>)}
             </div>
-        </Card>
-    );
+        </div>);
 };
 
 export default PDFAnnotator;

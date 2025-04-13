@@ -371,7 +371,7 @@ const JDChecker: React.FC = () => {
             content: (
                 <div className="space-y-4">
                     {isPDF && fileId ? (
-                        <div className="h-full">
+                        <div className="flex h-full min-h-[400px]">
                             <PDFAnnotator
                                 fileId={fileId}
                                 initialAnnotations={pdfAnnotations}
