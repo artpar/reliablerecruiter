@@ -37,14 +37,14 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
                                                        height = '600px',
                                                        initialAnnotations = [],
                                                    }) => {
-    console.log(`PDFAnnotator rendering with fileId: ${fileId}`);
+    // console.log(`PDFAnnotator rendering with fileId: ${fileId}`);
 
     const {files} = useFile();
     const {showToast} = useToast();
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [debugInfo, setDebugInfo] = useState<string[]>([]);
+    // const [debugInfo, setDebugInfo] = useState<string[]>([]);
 
     // Create a unique container ID for this specific instance
     const containerId = useRef(`pdf-container-${Math.random().toString(36).substring(2)}`);
@@ -53,15 +53,15 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
 
     // Add debug log function
     const addDebugLog = (message: string) => {
-        console.log(`PDFAnnotator Debug: ${message}`);
-        setDebugInfo(prev => [...prev, message]);
+        // console.log(`PDFAnnotator Debug: ${message}`);
+        // setDebugInfo(prev => [...prev, message]);
     };
 
     // Reset when fileId changes
     useEffect(() => {
         setLoading(true);
         setError(null);
-        setDebugInfo([`New fileId received: ${fileId}`]);
+        // setDebugInfo([`New fileId received: ${fileId}`]);
 
         // Clean up previous viewer if needed
         if (viewerRef.current) {
@@ -235,12 +235,13 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
                 <div className="pdf-error-container">
                     <p className="error-message">{error}</p>
                     <div className="debug-info">
-                        <h4>Debug Info:</h4>
-                        <ul>
-                            {debugInfo.map((log, i) => (
-                                <li key={i}>{log}</li>
-                            ))}
-                        </ul>
+                        Error loading PDF
+                        {/*<h4>Debug Info:</h4>*/}
+                        {/*<ul>*/}
+                        {/*    {debugInfo.map((log, i) => (*/}
+                        {/*        <li key={i}>{log}</li>*/}
+                        {/*    ))}*/}
+                        {/*</ul>*/}
                     </div>
                 </div>
             </Card>
@@ -249,17 +250,6 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
 
     return (
         <div className={className + " pdf-annotator-container h-full"} style={{height, overflow: 'hidden', width: '100%'}}>
-            {loading && debugInfo.length > 0 && (
-                <div style={{position: 'absolute', top: 0, left: 0, zIndex: 100, background: 'rgba(255,255,255,0.9)', padding: '5px', maxHeight: '200px', overflow: 'auto'}}>
-                    <h4>Debug Info:</h4>
-                    <ul style={{fontSize: '12px', margin: 0, padding: '0 0 0 20px'}}>
-                        {debugInfo.map((log, i) => (
-                            <li key={i}>{log}</li>
-                        ))}
-                    </ul>
-                </div>
-            )}
-
             <div
                 id={containerId.current}
                 ref={containerRef}
