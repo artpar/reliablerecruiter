@@ -5,32 +5,6 @@ import * as pdfjs from 'pdfjs-dist';
 const workerVersion = '5.1.91';
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${workerVersion}/build/pdf.worker.mjs`;
 
-// Simulate pdf-lib functionality for demonstration purposes
-// In a real implementation, you would import pdf-lib and use it directly
-class PDFLib {
-    static async PDFDocument = {
-    load: async (buffer) => {
-    return {
-    getPages: () => Array(10).fill(null).map((_, i) => ({ index: i })),
-getPageCount: () => 10,
-    embedFont: async () => ({ size: () => 12 }),
-    saveAsBase64: async () => 'base64pdf',
-    save: async () => new Uint8Array(buffer).buffer,
-    getMetadata: async () => ({ title: 'PDF Document', author: 'Author' }),
-    setMetadata: async (metadata) => {},
-};
-},
-create: async () => {
-    return {
-        addPage: () => ({ drawText: () => {}, drawRectangle: () => {} }),
-        save: async () => new Uint8Array().buffer,
-    };
-},
-};
-
-static rgb = (r, g, b) => ({ r, g, b });
-static StandardFonts = { Helvetica: 'Helvetica' };
-}
 
 // Handle messages from the main thread
 self.onmessage = async (event) => {
@@ -324,11 +298,7 @@ async function exportWithRenderedAnnotations(pdfBuffer, annotations) {
 /**
  * Extract text from a specific region of a PDF page
  */
-async function getTextFromRegion(
-    pdfBuffer,
-    pageNumber,
-    rect
-) {
+async function getTextFromRegion(pdfBuffer, pageNumber, rect) {
     try {
         // Load the PDF
         const loadingTask = pdfjs.getDocument({ data: new Uint8Array(pdfBuffer) });
@@ -355,7 +325,7 @@ async function getTextFromRegion(
         let extractedText = '';
 
         for (const item of textContent.items) {
-            const textItem = item; // Type safety for pdf.js
+            const textItem = item; // Type assertion removed
 
             // Check if the text item is inside our region
             if (
@@ -378,11 +348,7 @@ async function getTextFromRegion(
 /**
  * Search for text in the PDF
  */
-async function searchTextInPDF(
-    pdfBuffer,
-    searchText,
-    options
-) {
+async function searchTextInPDF(pdfBuffer, searchText, options) {
     try {
         // Load the PDF
         const loadingTask = pdfjs.getDocument({ data: new Uint8Array(pdfBuffer) });
@@ -414,7 +380,7 @@ async function searchTextInPDF(
 
             // Process each text item
             for (const item of textContent.items) {
-                const textItem = item; // Type safety for pdf.js
+                const textItem = item; // Type assertion removed
 
                 // Check if the text matches
                 const matches = textItem.str.match(searchPattern);
@@ -458,10 +424,7 @@ async function searchTextInPDF(
 /**
  * Create a summary of annotations in a PDF
  */
-async function createAnnotationSummary(
-    pdfBuffer,
-    annotations
-) {
+async function createAnnotationSummary(pdfBuffer, annotations) {
     try {
         // In a real implementation, you would:
         // 1. Create a new PDF using pdf-lib
@@ -659,5 +622,4 @@ async function getAllFontsInPDF(pdfDoc) {
     return Array.from(fontMap.values());
 }
 
-// Export an empty object (not needed in JS, but keeping it for consistency)
-export {};
+// Export statement removed as it's not needed in plain JavaScript for a service worker
