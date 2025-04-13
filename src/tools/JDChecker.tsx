@@ -343,7 +343,7 @@ const JDChecker: React.FC = () => {
                         id="jd-file-upload"
                         label="Upload Job Description"
                         acceptedFileTypes=".txt,.pdf,.docx,.doc"
-                        helperText="Supported file types: .txt, .pdf, .docx, .doc"
+                        helperText="Job Description"
                         onUpload={handleFileUpload}
                     />
                     <Button

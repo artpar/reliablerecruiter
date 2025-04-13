@@ -25,7 +25,7 @@ const ResumeUploader: React.FC<ResumeUploaderProps> = ({
         else if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
         else return `${(size / (1024 * 1024)).toFixed(1)} MB`;
     };
-    
+
     // Effect to detect when files are added to the context
     useEffect(() => {
         if (uploadedFiles.length > 0) {
@@ -90,10 +90,6 @@ const ResumeUploader: React.FC<ResumeUploaderProps> = ({
                                 </div>
                             </div>
                         ))}
-                    </div>
-
-                    <div className="mt-2 text-xs text-neutral-500">
-                        Supported file types: PDF, DOC, DOCX, TXT, RTF
                     </div>
                 </div>
             )}
