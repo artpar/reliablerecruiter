@@ -205,11 +205,11 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
     }, [fileId, files, showToast, readOnly, initialAnnotations]);
 
     // Update annotations state from viewer
-    const updateAnnotationsState = () => {
+    const updateAnnotationsState = async () => {
         if (!viewer) return;
 
         try {
-            const currentAnnotations = viewer.getAllAnnotations();
+            const currentAnnotations = await viewer.exportAnnotationsAsync();
             setAnnotations(currentAnnotations);
         } catch (error) {
             console.error('Error getting annotations:', error);
@@ -219,15 +219,16 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
     // Import annotations into the viewer
     const importAnnotations = (annotations: PDFAnnotation[]) => {
         if (!viewer) return;
+        console.log('Importing initial annotations:', annotations);
 
         try {
             // Clear existing annotations first
             viewer.deleteAllAnnotations();
 
             // Import each annotation
-            annotations.forEach(annotation => {
+            annotations.forEach(async (annotation) => {
                 try {
-                    viewer.importAnnotation(annotation);
+                    await viewer.importAnnotationsAsync(annotation);
                 } catch (error) {
                     console.error('Error importing annotation:', error, annotation);
                 }
@@ -255,22 +256,22 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
 
         switch (mode) {
             case 'ink':
-                viewer.setAnnotationCreateMode('ink');
+                viewer.setAnnotationMode('ink');
                 break;
             case 'highlight':
-                viewer.setAnnotationCreateMode('highlight');
+                viewer.setAnnotationMode('highlight');
                 break;
             case 'square':
-                viewer.setAnnotationCreateMode('square');
+                viewer.setAnnotationMode('square');
                 break;
             case 'circle':
-                viewer.setAnnotationCreateMode('circle');
+                viewer.setAnnotationMode('circle');
                 break;
             case 'text':
-                viewer.setAnnotationCreateMode('text');
+                viewer.setAnnotationMode('text');
                 break;
             case 'freetext':
-                viewer.setAnnotationCreateMode('freetext');
+                viewer.setAnnotationMode('freetext');
                 break;
             default:
                 viewer.setViewerMode('text-selection');
@@ -292,9 +293,9 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
         if (!viewer) return;
 
         if (zoomIn) {
-            viewer.zoomIn();
+            viewer.onZoomInClick();
         } else {
-            viewer.zoomOut();
+            viewer.onZoomOutClick();
         }
 
         // Update scale state (approximate as we don't have direct access to the scale value)
@@ -305,11 +306,12 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
     };
 
     // Save annotations
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!viewer) return;
 
         try {
-            const currentAnnotations = viewer.getAllAnnotations();
+            const currentAnnotations = await viewer.exportAnnotationsAsync()
+            // const currentAnnotations = viewer.getAllAnnotations();
 
             if (onSave) {
                 onSave(currentAnnotations, fileId);
@@ -363,7 +365,7 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
     return (
         <div className={className + " pdf-annotator-container h-full"} style={{height, overflow: 'hidden', width: '100%'}}>
             <div className="pdf-toolbar">
-                {!readOnly && (<div className="annotation-tools">
+                {!readOnly && (<div className="annotation-tools bg-black">
                     <Button
                         onClick={() => setAnnotationMode(annotationMode === 'highlight' ? null : 'highlight')}
                         variant={annotationMode === 'highlight' ? 'primary' : 'secondary'}

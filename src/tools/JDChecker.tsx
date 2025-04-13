@@ -200,7 +200,7 @@ const JDChecker: React.FC = () => {
             if (isPDF && fileId) {
                 console.log("Creating bias annotations for", result.biasedTerms.length, "biased terms");
                 createBiasAnnotations(result.biasedTerms);
-                
+
                 // Generate a new key to force PDFAnnotator to re-render with a fresh instance
                 setPdfViewerKey(`pdf-viewer-${Date.now()}`);
             }
@@ -233,7 +233,7 @@ const JDChecker: React.FC = () => {
                 // Get category-specific color
                 const color = getColorForCategory(term.category);
 
-                // Create highlight annotation
+                // TODO: Create highlight annotation
                 // Note: in a real implementation, you would need to
                 // find the actual position of this text in the PDF
                 return {
