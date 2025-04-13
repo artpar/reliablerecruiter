@@ -8,8 +8,23 @@ import Button from './common/Button';
 import { useFile } from '../context/FileContext';
 import useToast from '../hooks/useToast';
 
+// Set the PDF.js worker source path globally
+// This needs to be done before any ts-pdf components are instantiated
+if (typeof window !== 'undefined' && !window.pdfjsWorkerSrc) {
+    // Using CDN for the worker file - in production, host this file yourself
+    window.pdfjsWorkerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.7.107/pdf.worker.min.js';
+    console.log('PDF.js worker source path set:', window.pdfjsWorkerSrc);
+}
+
 // Re-export ts-pdf annotation types for external use
 export type PDFAnnotation = AnnotationBase;
+
+// Define window property for TypeScript
+declare global {
+    interface Window {
+        pdfjsWorkerSrc: string;
+    }
+}
 
 interface PDFAnnotatorProps {
     fileId: string;
@@ -37,6 +52,7 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
     const [scale, setScale] = useState(1.5);
     const [selectedAnnotation, setSelectedAnnotation] = useState<PDFAnnotation | null>(null);
     const [annotationMode, setAnnotationMode] = useState<'ink' | 'highlight' | 'square' | 'circle' | 'text' | 'freetext' | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -48,6 +64,7 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
         if (!file) {
             showToast('File not found', 'error');
             setLoading(false);
+            setError('File not found');
             return;
         }
 
@@ -55,7 +72,14 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
         if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
             showToast('Not a PDF file', 'error');
             setLoading(false);
+            setError('Not a PDF file');
             return;
+        }
+
+        // Ensure we have the worker source set
+        if (!window.pdfjsWorkerSrc) {
+            window.pdfjsWorkerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.7.107/pdf.worker.min.js';
+            console.log('PDF.js worker source path set in component:', window.pdfjsWorkerSrc);
         }
 
         // Set up the options for the viewer
@@ -68,10 +92,12 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
             disableSaveAction: readOnly,
             disableCloseAction: false,
             disableRotation: false,
+            workerSource: window.pdfjsWorkerSrc, // Explicitly provide the worker source
         };
 
         // Create and initialize the viewer
         try {
+            console.log('Creating TsPdfViewer with options:', options);
             const pdfViewer = new TsPdfViewer(options);
 
             // If we have the content as ArrayBuffer, convert to Uint8Array
@@ -85,50 +111,61 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
             }
 
             // Open the PDF
+            console.log('Opening PDF...');
             pdfViewer.openPdfAsync(pdfData)
                 .then(() => {
+                    console.log('PDF opened successfully');
                     setViewer(pdfViewer);
                     setTotalPages(pdfViewer.pagesCount);
                     setLoading(false);
+                    setError(null);
 
                     // Import initial annotations if any
                     if (initialAnnotations?.length) {
+                        console.log('Importing initial annotations:', initialAnnotations.length);
                         importAnnotations(initialAnnotations);
                     }
                 })
                 .catch((error) => {
                     console.error('Error opening PDF:', error);
-                    showToast('Failed to open PDF', 'error');
+                    showToast('Failed to open PDF: ' + error.message, 'error');
                     setLoading(false);
+                    setError('Failed to open PDF: ' + error.message);
                 });
 
             // Add event listeners for page change and annotations
             pdfViewer.addEventListener('pageChanged', (e: CustomEvent) => {
+                console.log('Page changed:', e.detail.pageNumber);
                 setCurrentPage(e.detail.pageNumber);
             });
 
             pdfViewer.addEventListener('annotationCreated', (e: CustomEvent) => {
+                console.log('Annotation created');
                 updateAnnotationsState();
             });
 
             pdfViewer.addEventListener('annotationDeleted', (e: CustomEvent) => {
+                console.log('Annotation deleted');
                 updateAnnotationsState();
             });
 
             pdfViewer.addEventListener('annotationUpdated', (e: CustomEvent) => {
+                console.log('Annotation updated');
                 updateAnnotationsState();
             });
 
             return () => {
                 // Cleanup
                 if (pdfViewer) {
+                    console.log('Closing PDF viewer');
                     pdfViewer.closeAsync().catch(console.error);
                 }
             };
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error initializing PDF viewer:', error);
-            showToast('Failed to initialize PDF viewer', 'error');
+            showToast('Failed to initialize PDF viewer: ' + error.message, 'error');
             setLoading(false);
+            setError('Failed to initialize PDF viewer: ' + error.message);
         }
     }, [fileId, files, showToast, readOnly, initialAnnotations]);
 
@@ -136,8 +173,12 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
     const updateAnnotationsState = () => {
         if (!viewer) return;
 
-        const currentAnnotations = viewer.getAllAnnotations();
-        setAnnotations(currentAnnotations);
+        try {
+            const currentAnnotations = viewer.getAllAnnotations();
+            setAnnotations(currentAnnotations);
+        } catch (error) {
+            console.error('Error getting annotations:', error);
+        }
     };
 
     // Import annotations into the viewer
@@ -150,7 +191,11 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
 
             // Import each annotation
             annotations.forEach(annotation => {
-                viewer.importAnnotation(annotation);
+                try {
+                    viewer.importAnnotation(annotation);
+                } catch (error) {
+                    console.error('Error importing annotation:', error, annotation);
+                }
             });
 
             updateAnnotationsState();
@@ -277,6 +322,26 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
         );
     }
 
+    if (error) {
+        return (
+            <div className="flex flex-col items-center justify-center h-full p-6 text-center">
+                <div className="text-red-600 mb-4">
+                    <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <h3 className="text-lg font-medium text-neutral-800 mb-2">Error Loading PDF</h3>
+                <p className="text-neutral-600 mb-4">{error}</p>
+                <Button
+                    variant="outline"
+                    onClick={() => window.location.reload()}
+                >
+                    Reload Page
+                </Button>
+            </div>
+        );
+    }
+
     return (
         <Card className="h-full flex flex-col">
             {/* Toolbar */}
@@ -293,8 +358,8 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
                     </button>
 
                     <span className="text-sm">
-            Page {currentPage} of {totalPages}
-          </span>
+                        Page {currentPage} of {totalPages}
+                    </span>
 
                     <button
                         className="p-1 rounded hover:bg-neutral-100"
