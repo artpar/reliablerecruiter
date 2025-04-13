@@ -22,6 +22,7 @@ const PDF_LIB_ASSETS = [
     // PDF.js files
     'https://unpkg.com/pdfjs-dist@5.1.91/build/pdf.min.mjs',
     'https://unpkg.com/pdfjs-dist@5.1.91/build/pdf.worker.min.mjs',
+    'https://unpkg.com/pdfjs-dist@5.1.91/build/pdf.worker.mjs',
 ];
 
 // Worker files to cache
@@ -310,41 +311,49 @@ self.addEventListener('fetch', (event) => {
 });
 
 // Handle messages from clients
-self.addEventListener('message', async (event) => {
+self.addEventListener('message', (event) => {
     // Get the client that sent the message
     const client = event.source;
+    const { type, payload } = event.data || {};
 
-    // Handle different message types
-    if (!event.data || !event.data.type) {
-        return;
-    }
+    // Process message based on type
+    switch (type) {
+        case 'CACHE_URLS':
+            // Add URLs to cache
+            if (Array.isArray(payload?.urls)) {
+                event.waitUntil(
+                    caches.open(DYNAMIC_CACHE).then(cache => {
+                        return cache.addAll(payload.urls);
+                    }).then(() => {
+                        client.postMessage({ type: 'CACHE_COMPLETE' });
+                    })
+                );
+            }
+            break;
 
-    switch (event.data.type) {
         case 'SKIP_WAITING':
+            // Force activation
             self.skipWaiting();
             break;
 
         case 'PDF_TASK':
-            await handlePDFTask(event.data.payload, event.ports[0]);
-            break;
-
         case 'PDF_ANNOTATION_TASK':
-            await handlePDFAnnotationTask(event.data.payload, event.ports[0]);
-            break;
-
-        default:
-            // Unknown message type
+            // Handle all PDF-related tasks with a unified handler
+            if (payload && event.ports && event.ports[0]) {
+                handlePDFTask(payload, event.ports[0], type);
+            }
             break;
     }
 });
 
 /**
- * Handle PDF processing tasks
+ * Handle PDF processing tasks (both general and annotation tasks)
  *
  * @param {Object} payload - The task payload
  * @param {MessagePort} port - The message port to respond on
+ * @param {string} taskType - The type of task ('PDF_TASK' or 'PDF_ANNOTATION_TASK')
  */
-async function handlePDFTask(payload, port) {
+async function handlePDFTask(payload, port, taskType) {
     try {
         if (!payload || !payload.action) {
             throw new Error('Invalid PDF task payload');
@@ -353,61 +362,20 @@ async function handlePDFTask(payload, port) {
         const { action, content, options } = payload;
         let result;
 
-        // Import PDF.js dynamically
-        const pdfjs = await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@5.1.91/+esm');
+        // Use importScripts instead of dynamic import for service worker compatibility
+        // We'll need to use a pre-bundled version of PDF.js that works in service workers
+        const pdfjs = self.pdfjsLib;
 
-        // Configure the worker
-        const workerSrc = 'https://unpkg.com/pdfjs-dist@5.1.91/build/pdf.worker.min.mjs';
-        pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
-
-        switch (action) {
-            case 'extract':
-                result = await extractTextFromPDF(pdfjs, content);
-                break;
-
-            default:
-                throw new Error(`Unknown PDF action: ${action}`);
+        if (!pdfjs) {
+          throw new Error('PDF.js library not available in service worker. Make sure to load it with importScripts in the service worker initialization.');
         }
 
-        // Send the result back
-        port.postMessage({
-            success: true,
-            result
-        });
-    } catch (error) {
-        console.error('Error in PDF task handler:', error);
-        port.postMessage({
-            success: false,
-            error: error instanceof Error ? error.message : String(error)
-        });
-    } finally {
-        // Close the port
-        port.close();
-    }
-}
-
-/**
- * Handle PDF annotation tasks
- *
- * @param {Object} payload - The task payload
- * @param {MessagePort} port - The message port to respond on
- */
-async function handlePDFAnnotationTask(payload, port) {
-    try {
-        if (!payload || !payload.action) {
-            throw new Error('Invalid PDF annotation task payload');
+        // Configure the worker if needed
+        if (!pdfjs.GlobalWorkerOptions.workerSrc) {
+          pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
         }
 
-        const { action, content, options } = payload;
-        let result;
-
-        // Import PDF.js dynamically
-        const pdfjs = await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@5.1.91/+esm');
-
-        // Configure the worker
-        const workerSrc = 'https://unpkg.com/pdfjs-dist@5.1.91/build/pdf.worker.min.mjs';
-        pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
-
+        // Process the task based on the action
         switch (action) {
             case 'extract':
                 result = await extractTextFromPDF(pdfjs, content);
@@ -426,7 +394,7 @@ async function handlePDFAnnotationTask(payload, port) {
                 break;
 
             default:
-                throw new Error(`Unknown PDF annotation action: ${action}`);
+                throw new Error(`Unknown PDF action: ${action}`);
         }
 
         // Send the result back
@@ -435,7 +403,7 @@ async function handlePDFAnnotationTask(payload, port) {
             result
         });
     } catch (error) {
-        console.error('Error in PDF annotation task handler:', error);
+        console.error(`Error in PDF task handler (${taskType}):`, error);
         port.postMessage({
             success: false,
             error: error instanceof Error ? error.message : String(error)
