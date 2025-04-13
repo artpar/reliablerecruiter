@@ -62,6 +62,7 @@ const JDChecker: React.FC = () => {
 
                         // First, extract any existing annotations
                         const annotations = await PDFAnnotationService.extractAnnotations(pdfBuffer);
+                        console.log("Setting PDF annotations from PDF", annotations);
                         if (annotations.length > 0) {
                             setPdfAnnotations(annotations);
 
@@ -180,6 +181,7 @@ const JDChecker: React.FC = () => {
 
             // If it's a PDF, create annotations for biased terms
             if (isPDF && fileId) {
+                console.log("Setting bias annotations", result.biasedTerms)
                 createBiasAnnotations(result.biasedTerms);
             }
         } catch (error) {
@@ -207,6 +209,7 @@ const JDChecker: React.FC = () => {
 
         const newAnnotations: PDFAnnotation[] = [];
 
+        const termDone = {};
         try {
             // Always create a copy of the buffer before working with it
             const bufferCopy = file.content.slice(0);
@@ -215,11 +218,15 @@ const JDChecker: React.FC = () => {
             for (const term of biasedTerms) {
                 // Create a new copy for each search to prevent issues
                 const searchBuffer = bufferCopy.slice(0);
-
+                if (termDone[term.term]) {
+                    continue
+                }
+                termDone[term.term] = true;
                 const searchResults = await PDFAnnotationService.searchText(searchBuffer, term.term, {
                     matchCase: false,
                     wholeWord: true
                 });
+                console.log("BiasedTerm.SearchResults:", searchResults);
 
                 for (const result of searchResults) {
                     const color = getColorForCategory(term.category);
@@ -387,106 +394,107 @@ const JDChecker: React.FC = () => {
     const renderTabs = (): TabItem[] => {
         const tabs: TabItem[] = [{
             id: 'editor', label: 'Editor', content: (<div className="space-y-4">
-                    {isPDF && fileId ? (<div className="h-full">
-                            <PDFAnnotator
-                                fileId={fileId}
-                                initialAnnotations={pdfAnnotations}
-                                onSave={handleSaveAnnotations}
-                            />
-                        </div>) : (<TextArea
-                            label="Job Description"
-                            value={jobDescription}
-                            onChange={(e) => setJobDescription(e.target.value)}
-                            placeholder="Paste your job description here or upload a file..."
-                            rows={15}
-                        />)}
+                {isPDF && fileId ? (<div className="h-full">
+                    <PDFAnnotator
+                        fileId={fileId}
+                        initialAnnotations={pdfAnnotations}
+                        onSave={handleSaveAnnotations}
+                    />
+                </div>) : (<TextArea
+                    label="Job Description"
+                    value={jobDescription}
+                    onChange={(e) => setJobDescription(e.target.value)}
+                    placeholder="Paste your job description here or upload a file..."
+                    rows={15}
+                />)}
 
-                    <div className="flex justify-between">
-                        <FileUpload
-                            id="jd-file-upload"
-                            label="Upload Job Description"
-                            acceptedFileTypes=".txt,.pdf,.docx,.doc"
-                            helperText="Supported file types: .txt, .pdf, .docx, .doc"
-                            onUpload={handleFileUpload}
-                        />
-                        <Button
-                            variant="primary"
-                            onClick={handleAnalyze}
-                            isLoading={loading}
-                            disabled={isPDF ? pdfAnnotations.length === 0 && !jobDescription.trim() : !jobDescription.trim()}
-                        >
-                            Analyze for Bias
-                        </Button>
-                    </div>
-                </div>),
+                <div className="flex justify-between">
+                    <FileUpload
+                        id="jd-file-upload"
+                        label="Upload Job Description"
+                        acceptedFileTypes=".txt,.pdf,.docx,.doc"
+                        helperText="Supported file types: .txt, .pdf, .docx, .doc"
+                        onUpload={handleFileUpload}
+                    />
+                    <Button
+                        variant="primary"
+                        onClick={handleAnalyze}
+                        isLoading={loading}
+                        disabled={isPDF ? pdfAnnotations.length === 0 && !jobDescription.trim() : !jobDescription.trim()}
+                    >
+                        Analyze for Bias
+                    </Button>
+                </div>
+            </div>),
         }];
 
         if (analysis) {
             tabs.push({
                 id: 'analysis', label: 'Analysis Results', content: (<div className="space-y-6">
-                        <div className="flex justify-between items-center">
-                            <h2 className="text-xl font-semibold text-neutral-800">
-                                Bias Score: {analysis.score}/100
-                            </h2>
-                            <div className="text-sm text-neutral-600">
-                                {analysis.biasedTerms && Array.isArray(analysis.biasedTerms) ? analysis.biasedTerms.length : 0} potential issues found
-                            </div>
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-xl font-semibold text-neutral-800">
+                            Bias Score: {analysis.score}/100
+                        </h2>
+                        <div className="text-sm text-neutral-600">
+                            {analysis.biasedTerms && Array.isArray(analysis.biasedTerms) ? analysis.biasedTerms.length : 0} potential
+                            issues found
                         </div>
+                    </div>
 
-                        {isPDF ? (<div className="bg-neutral-50 border border-neutral-200 rounded-md p-4">
-                                <p className="text-sm text-neutral-600 mb-3">
-                                    Biased terms have been highlighted directly in the PDF. Return to the Editor tab to
-                                    view them.
-                                </p>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                        const editorTab = document.getElementById('tab-editor');
-                                        if (editorTab) editorTab.click();
-                                    }}
-                                >
-                                    Back to PDF Viewer
-                                </Button>
-                            </div>) : (<BiasHighlighter text={jobDescription} biasedTerms={analysis.biasedTerms}/>)}
-                    </div>),
+                    {isPDF ? (<div className="bg-neutral-50 border border-neutral-200 rounded-md p-4">
+                        <p className="text-sm text-neutral-600 mb-3">
+                            Biased terms have been highlighted directly in the PDF. Return to the Editor tab to
+                            view them.
+                        </p>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                                const editorTab = document.getElementById('tab-editor');
+                                if (editorTab) editorTab.click();
+                            }}
+                        >
+                            Back to PDF Viewer
+                        </Button>
+                    </div>) : (<BiasHighlighter text={jobDescription} biasedTerms={analysis.biasedTerms}/>)}
+                </div>),
             });
 
             tabs.push({
                 id: 'improved',
                 label: 'Improved Version',
                 content: (<div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                        <div className="lg:col-span-3">
-                            <TextArea
-                                label="Improved Job Description"
-                                value={improvedJobDescription}
-                                onChange={(e) => setImprovedJobDescription(e.target.value)}
-                                rows={15}
-                            />
-                            <div className="mt-4 flex justify-end">
-                                <Button
-                                    variant="primary"
-                                    onClick={handleSaveImproved}
-                                    isLoading={loading}
-                                >
-                                    {isPDF ? 'Save as PDF Annotation' : 'Save Improved Version'}
-                                </Button>
-                            </div>
+                    <div className="lg:col-span-3">
+                        <TextArea
+                            label="Improved Job Description"
+                            value={improvedJobDescription}
+                            onChange={(e) => setImprovedJobDescription(e.target.value)}
+                            rows={15}
+                        />
+                        <div className="mt-4 flex justify-end">
+                            <Button
+                                variant="primary"
+                                onClick={handleSaveImproved}
+                                isLoading={loading}
+                            >
+                                {isPDF ? 'Save as PDF Annotation' : 'Save Improved Version'}
+                            </Button>
                         </div>
+                    </div>
 
-                        <div className="lg:col-span-2">
-                            <h3 className="text-lg font-medium text-neutral-800 mb-3">
-                                Suggestions
-                            </h3>
+                    <div className="lg:col-span-2">
+                        <h3 className="text-lg font-medium text-neutral-800 mb-3">
+                            Suggestions
+                        </h3>
 
-                            <SuggestionList
-                                biasedTerms={analysis.biasedTerms}
-                                originalText={jobDescription}
-                                improvedText={improvedJobDescription}
-                                onUpdate={handleUpdateImprovedText}
-                            />
-                        </div>
-                    </div>),
+                        <SuggestionList
+                            biasedTerms={analysis.biasedTerms}
+                            originalText={jobDescription}
+                            improvedText={improvedJobDescription}
+                            onUpdate={handleUpdateImprovedText}
+                        />
+                    </div>
+                </div>),
             });
         }
 
@@ -494,19 +502,19 @@ const JDChecker: React.FC = () => {
     };
 
     return (<div className="container mx-auto py-6 px-4">
-            <div className="mb-6">
-                <h1 className="text-2xl font-bold text-neutral-800">Inclusive Job Description Checker</h1>
-                <p className="text-neutral-600 mt-1">
-                    Analyze job descriptions for potentially biased language and get suggestions for more inclusive
-                    alternatives.
-                    {isPDF && " You can annotate the PDF directly to highlight and edit biased terms."}
-                </p>
-            </div>
+        <div className="mb-6">
+            <h1 className="text-2xl font-bold text-neutral-800">Inclusive Job Description Checker</h1>
+            <p className="text-neutral-600 mt-1">
+                Analyze job descriptions for potentially biased language and get suggestions for more inclusive
+                alternatives.
+                {isPDF && " You can annotate the PDF directly to highlight and edit biased terms."}
+            </p>
+        </div>
 
-            <Card>
-                <Tabs tabs={renderTabs()}/>
-            </Card>
-        </div>);
+        <Card>
+            <Tabs tabs={renderTabs()}/>
+        </Card>
+    </div>);
 };
 
 export default JDChecker;

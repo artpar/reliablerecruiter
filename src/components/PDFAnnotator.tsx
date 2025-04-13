@@ -47,6 +47,7 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
     const [annotationMode, setAnnotationMode] = useState<'highlight' | 'note' | 'redaction' | 'edit' | null>(null);
     const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
 
+    console.log("PDFAnnotator.annotations", annotations);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const annotationLayerRef = useRef<HTMLDivElement>(null);
 
@@ -131,10 +132,10 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
             try {
                 // Set rendering flag to true
                 isRenderingRef.current = true;
-                
+
                 // Cancel any previous rendering
                 cancelPreviousRender();
-                
+
                 // Get the page
                 const page = await pdfDocument.getPage(currentPage);
 
