@@ -1,45 +1,15 @@
-// src/workers/pdfAnnotationWorker.ts
+// src/workers/pdfAnnotationWorker.js
 import * as pdfjs from 'pdfjs-dist';
-import { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist/types/display/api';
 
 // Set the worker source
 const workerVersion = '5.1.91';
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${workerVersion}/build/pdf.worker.mjs`;
 
-// Types
-interface PDFAnnotation {
-    id: string;
-    type: 'highlight' | 'note' | 'redaction' | 'edit';
-    pageNumber: number;
-    rect: { x: number; y: number; width: number; height: number };
-    content?: string;
-    color?: string;
-    author?: string;
-    createdAt?: number;
-    modifiedAt?: number;
-}
-
-type WorkerRequest = {
-    pdfBuffer: ArrayBuffer;
-    annotations?: PDFAnnotation[];
-    action?: string;
-    pageNumber?: number;
-    rect?: { x: number; y: number; width: number; height: number };
-    searchText?: string;
-    options?: any;
-};
-
-type WorkerResponse = {
-    success: boolean;
-    result?: any;
-    error?: string;
-};
-
 // Simulate pdf-lib functionality for demonstration purposes
 // In a real implementation, you would import pdf-lib and use it directly
 class PDFLib {
     static async PDFDocument = {
-    load: async (buffer: ArrayBuffer) => {
+    load: async (buffer) => {
     return {
     getPages: () => Array(10).fill(null).map((_, i) => ({ index: i })),
 getPageCount: () => 10,
@@ -47,7 +17,7 @@ getPageCount: () => 10,
     saveAsBase64: async () => 'base64pdf',
     save: async () => new Uint8Array(buffer).buffer,
     getMetadata: async () => ({ title: 'PDF Document', author: 'Author' }),
-    setMetadata: async (metadata: any) => {},
+    setMetadata: async (metadata) => {},
 };
 },
 create: async () => {
@@ -58,14 +28,14 @@ create: async () => {
 },
 };
 
-static rgb = (r: number, g: number, b: number) => ({ r, g, b });
+static rgb = (r, g, b) => ({ r, g, b });
 static StandardFonts = { Helvetica: 'Helvetica' };
 }
 
 // Handle messages from the main thread
 self.onmessage = async (event) => {
     try {
-        const request = event.data as WorkerRequest;
+        const request = event.data;
         const {
             pdfBuffer,
             annotations = [],
@@ -119,13 +89,13 @@ self.onmessage = async (event) => {
         self.postMessage({
             success: true,
             result
-        } as WorkerResponse);
+        });
     } catch (error) {
         // Send any errors back to the main thread
         self.postMessage({
             success: false,
             error: error instanceof Error ? error.message : String(error)
-        } as WorkerResponse);
+        });
     }
 };
 
@@ -133,7 +103,7 @@ self.onmessage = async (event) => {
  * Save annotations to the PDF
  * In a real implementation, this would use pdf-lib to add actual PDF annotations
  */
-async function saveAnnotations(pdfBuffer: ArrayBuffer, annotations: PDFAnnotation[]): Promise<ArrayBuffer> {
+async function saveAnnotations(pdfBuffer, annotations) {
     try {
         // Load the PDF document for inspection
         const loadingTask = pdfjs.getDocument({ data: new Uint8Array(pdfBuffer) });
@@ -182,7 +152,7 @@ async function saveAnnotations(pdfBuffer: ArrayBuffer, annotations: PDFAnnotatio
 /**
  * Extract annotations from a PDF
  */
-async function extractAnnotations(pdfBuffer: ArrayBuffer): Promise<PDFAnnotation[]> {
+async function extractAnnotations(pdfBuffer) {
     try {
         // Look for our custom annotations data in the PDF
         const pdfData = new Uint8Array(pdfBuffer);
@@ -226,7 +196,7 @@ async function extractAnnotations(pdfBuffer: ArrayBuffer): Promise<PDFAnnotation
  * Apply redactions to a PDF
  * In a real implementation, this would permanently remove the redacted content
  */
-async function applyRedactions(pdfBuffer: ArrayBuffer, redactions: PDFAnnotation[]): Promise<ArrayBuffer> {
+async function applyRedactions(pdfBuffer, redactions) {
     try {
         // In a real implementation, you would:
         // 1. Load the PDF with pdf-lib
@@ -274,7 +244,7 @@ async function applyRedactions(pdfBuffer: ArrayBuffer, redactions: PDFAnnotation
 /**
  * Apply text edits to a PDF
  */
-async function applyTextEdits(pdfBuffer: ArrayBuffer, edits: PDFAnnotation[]): Promise<ArrayBuffer> {
+async function applyTextEdits(pdfBuffer, edits) {
     try {
         // In a real implementation, you would:
         // 1. Load the PDF with pdf-lib
@@ -322,7 +292,7 @@ async function applyTextEdits(pdfBuffer: ArrayBuffer, edits: PDFAnnotation[]): P
 /**
  * Export a PDF with annotations rendered directly into the content
  */
-async function exportWithRenderedAnnotations(pdfBuffer: ArrayBuffer, annotations: PDFAnnotation[]): Promise<ArrayBuffer> {
+async function exportWithRenderedAnnotations(pdfBuffer, annotations) {
     try {
         // In a real implementation, you would:
         // 1. Load the PDF with pdf-lib
@@ -355,10 +325,10 @@ async function exportWithRenderedAnnotations(pdfBuffer: ArrayBuffer, annotations
  * Extract text from a specific region of a PDF page
  */
 async function getTextFromRegion(
-    pdfBuffer: ArrayBuffer,
-    pageNumber: number,
-    rect: { x: number; y: number; width: number; height: number }
-): Promise<string> {
+    pdfBuffer,
+    pageNumber,
+    rect
+) {
     try {
         // Load the PDF
         const loadingTask = pdfjs.getDocument({ data: new Uint8Array(pdfBuffer) });
@@ -385,7 +355,7 @@ async function getTextFromRegion(
         let extractedText = '';
 
         for (const item of textContent.items) {
-            const textItem = item as any; // Type safety for pdf.js
+            const textItem = item; // Type safety for pdf.js
 
             // Check if the text item is inside our region
             if (
@@ -409,18 +379,10 @@ async function getTextFromRegion(
  * Search for text in the PDF
  */
 async function searchTextInPDF(
-    pdfBuffer: ArrayBuffer,
-    searchText: string,
-    options?: {
-    matchCase?: boolean;
-    wholeWord?: boolean;
-    limitToPages?: number[];
-}
-): Promise<Array<{
-    pageNumber: number;
-    rect: { x: number; y: number; width: number; height: number };
-    matchedText: string;
-}>> {
+    pdfBuffer,
+    searchText,
+    options
+) {
     try {
         // Load the PDF
         const loadingTask = pdfjs.getDocument({ data: new Uint8Array(pdfBuffer) });
@@ -441,65 +403,65 @@ async function searchTextInPDF(
 
         // Search each page
         for (const pageNumber of pageNumbers) {
-    // Get the page
-    const page = await pdfDoc.getPage(pageNumber);
+            // Get the page
+            const page = await pdfDoc.getPage(pageNumber);
 
-    // Get the text content
-    const textContent = await page.getTextContent();
+            // Get the text content
+            const textContent = await page.getTextContent();
 
-    // Get the viewport for coordinate conversion
-    const viewport = page.getViewport({ scale: 1.0 });
+            // Get the viewport for coordinate conversion
+            const viewport = page.getViewport({ scale: 1.0 });
 
-    // Process each text item
-    for (const item of textContent.items) {
-        const textItem = item as any; // Type safety for pdf.js
+            // Process each text item
+            for (const item of textContent.items) {
+                const textItem = item; // Type safety for pdf.js
 
-        // Check if the text matches
-        const matches = textItem.str.match(searchPattern);
-        if (matches) {
-            for (const match of matches) {
-                // Find the position of the match in the text item
-                const matchIndex = textItem.str.indexOf(match);
-                if (matchIndex === -1) continue;
+                // Check if the text matches
+                const matches = textItem.str.match(searchPattern);
+                if (matches) {
+                    for (const match of matches) {
+                        // Find the position of the match in the text item
+                        const matchIndex = textItem.str.indexOf(match);
+                        if (matchIndex === -1) continue;
 
-                // Calculate the match position and dimensions
-                // This is a simplified approach - in a real implementation,
-                // you would use the character spacing information
-                const charWidth = textItem.width / textItem.str.length;
+                        // Calculate the match position and dimensions
+                        // This is a simplified approach - in a real implementation,
+                        // you would use the character spacing information
+                        const charWidth = textItem.width / textItem.str.length;
 
-                const matchPosX = textItem.transform[4] + (matchIndex * charWidth);
-                const matchWidth = match.length * charWidth;
+                        const matchPosX = textItem.transform[4] + (matchIndex * charWidth);
+                        const matchWidth = match.length * charWidth;
 
-                // Convert PDF coordinates to viewport coordinates
-                const x = matchPosX;
-                const y = viewport.height - textItem.transform[5]; // Convert from PDF to viewport coordinates
-                const width = matchWidth;
-                const height = textItem.height;
+                        // Convert PDF coordinates to viewport coordinates
+                        const x = matchPosX;
+                        const y = viewport.height - textItem.transform[5]; // Convert from PDF to viewport coordinates
+                        const width = matchWidth;
+                        const height = textItem.height;
 
-                results.push({
-                    pageNumber,
-                    rect: { x, y, width, height },
-                    matchedText: match
-                });
+                        results.push({
+                            pageNumber,
+                            rect: { x, y, width, height },
+                            matchedText: match
+                        });
+                    }
+                }
             }
         }
-    }
-}
 
-return results;
-} catch (error) {
-    console.error('Error searching text in PDF:', error);
-    throw error;
-}
+        return results;
+    } catch (error) {
+        console.error('Error searching text in PDF:', error);
+        throw error;
+    }
 }
 
 /**
  * Create a summary of annotations in a PDF
  */
 async function createAnnotationSummary(
-    pdfBuffer: ArrayBuffer,
-    annotations: PDFAnnotation[]
-): Promise<ArrayBuffer> {
+    pdfBuffer,
+    annotations
+) {
     try {
         // In a real implementation, you would:
         // 1. Create a new PDF using pdf-lib
@@ -513,13 +475,13 @@ async function createAnnotationSummary(
         // For this demo, we'll create a simple PDF-like structure
 
         // Group annotations by page
-        const annotationsByPage = new Map<number, PDFAnnotation[]>();
+        const annotationsByPage = new Map();
 
         annotations.forEach(annotation => {
             if (!annotationsByPage.has(annotation.pageNumber)) {
                 annotationsByPage.set(annotation.pageNumber, []);
             }
-            annotationsByPage.get(annotation.pageNumber)!.push(annotation);
+            annotationsByPage.get(annotation.pageNumber).push(annotation);
         });
 
         // Create summary text
@@ -609,12 +571,12 @@ ${700 + summaryText.length * 2}
 }
 
 // Helper function to escape regular expression special characters
-function escapeRegExp(string: string): string {
+function escapeRegExp(string) {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 // Helper function to convert ArrayBuffer to Base64
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
+function arrayBufferToBase64(buffer) {
     const bytes = new Uint8Array(buffer);
     let binary = '';
     const len = bytes.byteLength;
@@ -625,7 +587,7 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 }
 
 // Helper function to convert Base64 to JSON
-function base64ToJson(base64String: string): any {
+function base64ToJson(base64String) {
     try {
         // Clean up the base64 string (may contain PDF artifacts)
         const cleanedBase64 = base64String.replace(/[^A-Za-z0-9+/=]/g, '');
@@ -650,7 +612,7 @@ function base64ToJson(base64String: string): any {
 }
 
 // Helper function to get bounds of text elements
-function getTextBounds(textItem: any, viewport: any) {
+function getTextBounds(textItem, viewport) {
     // This is a simplified approach - in real implementation,
     // you would need to handle text direction, rotation, etc.
     const x = textItem.transform[4];
@@ -667,7 +629,7 @@ function getTextBounds(textItem: any, viewport: any) {
 }
 
 // Helper function to get all fonts in a PDF
-async function getAllFontsInPDF(pdfDoc: PDFDocumentProxy) {
+async function getAllFontsInPDF(pdfDoc) {
     const fontMap = new Map();
 
     // Get all pages
@@ -697,5 +659,5 @@ async function getAllFontsInPDF(pdfDoc: PDFDocumentProxy) {
     return Array.from(fontMap.values());
 }
 
-// Export an empty object to make TypeScript happy with the module format
+// Export an empty object (not needed in JS, but keeping it for consistency)
 export {};
