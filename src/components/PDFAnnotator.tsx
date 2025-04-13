@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as pdfjs from 'pdfjs-dist';
-import { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist/types/display/api';
+import { PDFDocumentProxy } from 'pdfjs-dist/types/display/api';
 import Button from './common/Button';
 import Card from './common/Card';
 import { useFile } from '../context/FileContext';
@@ -45,6 +45,7 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
     const [annotations, setAnnotations] = useState<Annotation[]>(initialAnnotations);
     const [selectedAnnotation, setSelectedAnnotation] = useState<Annotation | null>(null);
     const [annotationMode, setAnnotationMode] = useState<'highlight' | 'note' | 'redaction' | 'edit' | null>(null);
+    const [pdfBytes, setPdfBytes] = useState<Uint8Array | null>(null);
 
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const annotationLayerRef = useRef<HTMLDivElement>(null);
@@ -71,14 +72,18 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
         setLoading(true);
         const loadPDF = async () => {
             try {
-                // Convert to Uint8Array if it's an ArrayBuffer
-                let pdfData;
+                // Create a new Uint8Array from the ArrayBuffer to prevent detachment issues
+                let pdfData: Uint8Array;
                 if (file.content instanceof ArrayBuffer) {
-                    pdfData = new Uint8Array(file.content);
+                    // Make a copy of the ArrayBuffer content
+                    pdfData = new Uint8Array(file.content.slice(0));
+                    // Store this for potential later use
+                    setPdfBytes(pdfData);
                 } else {
                     // Handle string content (unlikely for PDF but just in case)
                     const encoder = new TextEncoder();
                     pdfData = encoder.encode(file.content as string);
+                    setPdfBytes(pdfData);
                 }
 
                 // Load the PDF document
@@ -98,12 +103,38 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
         loadPDF();
     }, [fileId, files, showToast]);
 
+    // Track rendering state to prevent multiple simultaneous renders
+    const isRenderingRef = useRef(false);
+
     // Render PDF page
     useEffect(() => {
         if (!pdfDocument || !canvasRef.current) return;
 
+        // Cancel any existing render tasks
+        const cancelPreviousRender = () => {
+            if (canvasRef.current) {
+                // Clear the canvas to ensure we're starting fresh
+                const canvas = canvasRef.current;
+                const context = canvas.getContext('2d');
+                if (context) {
+                    context.clearRect(0, 0, canvas.width, canvas.height);
+                }
+            }
+        };
+
         const renderPage = async () => {
+            // If already rendering, don't start another render operation
+            if (isRenderingRef.current) {
+                return;
+            }
+
             try {
+                // Set rendering flag to true
+                isRenderingRef.current = true;
+                
+                // Cancel any previous rendering
+                cancelPreviousRender();
+                
                 // Get the page
                 const page = await pdfDocument.getPage(currentPage);
 
@@ -131,6 +162,9 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
             } catch (error) {
                 console.error('Error rendering PDF page:', error);
                 showToast('Failed to render PDF page', 'error');
+            } finally {
+                // Reset rendering flag when done
+                isRenderingRef.current = false;
             }
         };
 
@@ -423,8 +457,8 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
                     </button>
 
                     <span className="text-sm">
-            Page {currentPage} of {totalPages}
-          </span>
+                        Page {currentPage} of {totalPages}
+                    </span>
 
                     <button
                         className="p-1 rounded hover:bg-neutral-100"

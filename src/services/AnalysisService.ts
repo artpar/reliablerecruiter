@@ -1,7 +1,6 @@
 /**
  * Service for analyzing text and data
  */
-import {analyzeBiasedLanguage} from "./AnalyzeBiasedLanguage";
 
 /**
  * Analyze personal identifiers in text
@@ -216,8 +215,4 @@ export const analyzeSkills = (data: Record<string, any>[], skillField: string): 
     });
 
     return skills;
-};
-
-export default {
-    analyzeBiasedLanguage, analyzePersonalIdentifiers, anonymizeText, analyzeDiversity, analyzeSkills,
 };

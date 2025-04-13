@@ -8,12 +8,12 @@ import TextArea from '../components/common/TextArea';
 import SuggestionList from './jd-checker/SuggestionList';
 import PDFAnnotator from '../components/PDFAnnotator';
 import useToast from '../hooks/useToast';
-import analyzeBiasedLanguage from '../services/AnalysisService';
+import {analyzeBiasedLanguage} from '../services/AnalyzeBiasedLanguage';
 import PDFAnnotationService, {PDFAnnotation} from '../services/PDFAnnotationService';
-import {BiasHighlighter} from "./jd-checker/BiasHighlighter"
+import {BiasHighlighter} from "./jd-checker/BiasHighlighter";
 
 const JDChecker: React.FC = () => {
-    const {files} = useFile();
+    const {files, dispatch} = useFile();
     const {showToast} = useToast();
 
     const [jobDescription, setJobDescription] = useState('');
@@ -30,12 +30,13 @@ const JDChecker: React.FC = () => {
             const file = files.find(f => f.id === fileId);
             if (file) {
                 processFile(file);
+            } else {
+                console.warn(`File with ID ${fileId} not found in FileContext`);
             }
         }
     }, [fileId, files]);
 
     const processFile = async (file: any) => {
-        setLoading(true);
         try {
             // Check if it's a PDF
             const isPdfFile = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
@@ -53,17 +54,37 @@ const JDChecker: React.FC = () => {
                 setJobDescription(text);
                 setImprovedJobDescription(text);
             } else {
-                // For PDFs, we'll extract text from annotations in the PDF viewer
-                // Try to load existing annotations
+                // For PDFs, we'll extract text from annotations or the PDF content
                 if (file.content instanceof ArrayBuffer) {
                     try {
-                        const annotations = await PDFAnnotationService.extractAnnotations(file.content);
+                        // Make sure to always work with a copy of the ArrayBuffer
+                        const pdfBuffer = file.content.slice(0);
+
+                        // First, extract any existing annotations
+                        const annotations = await PDFAnnotationService.extractAnnotations(pdfBuffer);
                         if (annotations.length > 0) {
                             setPdfAnnotations(annotations);
+
+                            // If there are annotations with content, extract the text
+                            const textAnnotations = annotations.filter(a => a.content);
+                            if (textAnnotations.length > 0) {
+                                const combinedText = textAnnotations.map(a => a.content).join('\n');
+                                setJobDescription(combinedText);
+                                setImprovedJobDescription(combinedText);
+                            } else {
+                                // If no content in annotations, try to extract text
+                                extractTextFromPDF(pdfBuffer);
+                            }
+                        } else {
+                            // If no annotations, extract text directly
+                            extractTextFromPDF(pdfBuffer);
                         }
                     } catch (error) {
-                        console.error('Error loading annotations:', error);
+                        console.error('Error processing PDF:', error);
+                        showToast('Error processing PDF file', 'error');
                     }
+                } else {
+                    showToast('Invalid PDF content', 'error');
                 }
             }
         } catch (error) {
@@ -74,22 +95,77 @@ const JDChecker: React.FC = () => {
         }
     };
 
+    // Helper function to extract text from PDF
+    const extractTextFromPDF = async (pdfBuffer: ArrayBuffer) => {
+        try {
+            // Always work with a copy of the buffer
+            const bufferCopy = pdfBuffer.slice(0);
+
+            // Use the PDF service to extract text
+            const extractedText = await PDFAnnotationService.extractText(bufferCopy);
+
+            if (extractedText && extractedText.trim()) {
+                setJobDescription(extractedText);
+                setImprovedJobDescription(extractedText);
+            } else {
+                showToast('Could not extract text from PDF', 'warning');
+            }
+        } catch (error) {
+            console.error('Error extracting text from PDF:', error);
+            showToast('Failed to extract text from PDF', 'error');
+        }
+    };
+
     const handleFileUpload = async (files: File[]) => {
         if (files.length > 0) {
             // Reset state
             setFileId(null);
             setAnalysis(null);
             setPdfAnnotations([]);
+            setLoading(true);
 
-            // The file ID will be available in the FileContext after upload
-            setTimeout(() => {
-                const uploadedFileId = `file-${Date.now()}-${files[0].name.replace(/[^a-zA-Z0-9]/g, '-')}`;
-                setFileId(uploadedFileId);
-            }, 100);
+            try {
+                const file = files[0];
+                const reader = new FileReader();
+
+                reader.onload = async (event) => {
+                    if (event.target && event.target.result) {
+                        const fileContent = event.target.result as ArrayBuffer;
+                        const uploadedFileId = `file-${Date.now()}-${file.name.replace(/[^a-zA-Z0-9]/g, '-')}`;
+
+                        // Create a copy of the ArrayBuffer
+                        const contentCopy = fileContent.slice(0);
+
+                        // Add file to FileContext
+                        dispatch({
+                            type: 'ADD_FILE', payload: {
+                                id: uploadedFileId,
+                                name: file.name,
+                                type: file.type,
+                                size: file.size,
+                                content: contentCopy
+                            }
+                        });
+
+                        setFileId(uploadedFileId);
+                    }
+                };
+
+                reader.onerror = () => {
+                    showToast('Error reading file', 'error');
+                    setLoading(false);
+                };
+
+                reader.readAsArrayBuffer(file);
+            } catch (error) {
+                console.error('Error uploading file:', error);
+                showToast('Error uploading file', 'error');
+                setLoading(false);
+            }
         }
     };
 
-    const handleAnalyze = () => {
+    const handleAnalyze = async () => {
         if (!jobDescription.trim()) {
             showToast('Please enter a job description', 'warning');
             return;
@@ -97,7 +173,8 @@ const JDChecker: React.FC = () => {
 
         setLoading(true);
         try {
-            const result = analyzeBiasedLanguage(jobDescription);
+            const result = await analyzeBiasedLanguage(jobDescription);
+            console.log("analyzed language:", result);
             setAnalysis(result);
             setImprovedJobDescription(jobDescription);
 
@@ -115,10 +192,14 @@ const JDChecker: React.FC = () => {
 
     // Convert biased terms to PDF annotations
     const createBiasAnnotations = async (biasedTerms: any[]) => {
+        // Check if biasedTerms is valid and iterable
+        if (!biasedTerms || !Array.isArray(biasedTerms)) {
+            console.error('Error: biasedTerms is not a valid array', biasedTerms);
+            return;
+        }
+
         // If there are existing bias annotations, remove them
-        const filteredAnnotations = pdfAnnotations.filter(
-            ann => ann.type !== 'highlight' || !ann.id.startsWith('bias-')
-        );
+        const filteredAnnotations = pdfAnnotations.filter(ann => ann.type !== 'highlight' || !ann.id.startsWith('bias-'));
 
         // We need to search the PDF for each biased term
         const file = files.find(f => f.id === fileId);
@@ -127,13 +208,18 @@ const JDChecker: React.FC = () => {
         const newAnnotations: PDFAnnotation[] = [];
 
         try {
+            // Always create a copy of the buffer before working with it
+            const bufferCopy = file.content.slice(0);
+
             // For each biased term, search the PDF and create highlight annotations
             for (const term of biasedTerms) {
-                const searchResults = await PDFAnnotationService.searchText(
-                    file.content,
-                    term.term,
-                    {matchCase: false, wholeWord: true}
-                );
+                // Create a new copy for each search to prevent issues
+                const searchBuffer = bufferCopy.slice(0);
+
+                const searchResults = await PDFAnnotationService.searchText(searchBuffer, term.term, {
+                    matchCase: false,
+                    wholeWord: true
+                });
 
                 for (const result of searchResults) {
                     const color = getColorForCategory(term.category);
@@ -198,35 +284,28 @@ const JDChecker: React.FC = () => {
                 // For PDFs, create edit annotations for the improvements
                 const editAnnotations: PDFAnnotation[] = [];
 
-                // In a real implementation, you would compare the original and improved
-                // text to create specific edit annotations for each change
-                // For this demo, we'll create a simple note annotation
+                // Create a copy of the buffer
+                const pdfBuffer = file.content.slice(0);
 
+                // Create a note annotation with improvement
                 editAnnotations.push({
                     id: `edit-improvements-${Date.now()}`,
                     type: 'note',
                     pageNumber: 1,
                     rect: {x: 50, y: 50, width: 200, height: 150},
-                    content: 'Improvements made to job description:\n\n' + improvedJobDescription.substring(0, 500) +
-                        (improvedJobDescription.length > 500 ? '...' : '')
+                    content: 'Improvements made to job description:\n\n' + improvedJobDescription.substring(0, 500) + (improvedJobDescription.length > 500 ? '...' : '')
                 });
 
                 // Combine with existing annotations
                 const updatedAnnotations = [...pdfAnnotations.filter(ann => !ann.id.startsWith('edit-improvements-')), ...editAnnotations];
 
                 // Save the annotations to the PDF
-                const updatedPdfBuffer = await PDFAnnotationService.saveAnnotations(
-                    file.content,
-                    updatedAnnotations
-                );
+                const updatedPdfBuffer = await PDFAnnotationService.saveAnnotations(pdfBuffer, updatedAnnotations);
 
                 // Update the file in FileContext
-                const {dispatch} = useFile();
                 dispatch({
-                    type: 'UPDATE_FILE_CONTENT',
-                    payload: {
-                        id: fileId,
-                        content: updatedPdfBuffer,
+                    type: 'UPDATE_FILE_CONTENT', payload: {
+                        id: fileId, content: updatedPdfBuffer,
                     },
                 });
 
@@ -234,12 +313,9 @@ const JDChecker: React.FC = () => {
                 showToast('Improvements saved to PDF as annotations', 'success');
             } else {
                 // For text files, just update the content
-                const {dispatch} = useFile();
                 dispatch({
-                    type: 'UPDATE_FILE_CONTENT',
-                    payload: {
-                        id: fileId,
-                        content: improvedJobDescription,
+                    type: 'UPDATE_FILE_CONTENT', payload: {
+                        id: fileId, content: improvedJobDescription,
                     },
                 });
 
@@ -280,19 +356,16 @@ const JDChecker: React.FC = () => {
                 return;
             }
 
+            // Make a copy of the buffer for saving
+            const bufferCopy = file.content.slice(0);
+
             // Save annotations to the PDF
-            const updatedPdfBuffer = await PDFAnnotationService.saveAnnotations(
-                file.content,
-                annotations
-            );
+            const updatedPdfBuffer = await PDFAnnotationService.saveAnnotations(bufferCopy, annotations);
 
             // Update file in context
-            const {dispatch} = useFile();
             dispatch({
-                type: 'UPDATE_FILE_CONTENT',
-                payload: {
-                    id: pdfFileId,
-                    content: updatedPdfBuffer,
+                type: 'UPDATE_FILE_CONTENT', payload: {
+                    id: pdfFileId, content: updatedPdfBuffer,
                 },
             });
 
@@ -312,69 +385,55 @@ const JDChecker: React.FC = () => {
     };
 
     const renderTabs = (): TabItem[] => {
-        const tabs: TabItem[] = [
-            {
-                id: 'editor',
-                label: 'Editor',
-                content: (
-                    <div className="space-y-4">
-                        {isPDF && fileId ? (
-                            <div className="h-[600px]">
-                                <PDFAnnotator
-                                    fileId={fileId}
-                                    initialAnnotations={pdfAnnotations}
-                                    onSave={handleSaveAnnotations}
-                                />
-                            </div>
-                        ) : (
-                            <TextArea
-                                label="Job Description"
-                                value={jobDescription}
-                                onChange={(e) => setJobDescription(e.target.value)}
-                                placeholder="Paste your job description here or upload a file..."
-                                rows={15}
+        const tabs: TabItem[] = [{
+            id: 'editor', label: 'Editor', content: (<div className="space-y-4">
+                    {isPDF && fileId ? (<div className="h-full">
+                            <PDFAnnotator
+                                fileId={fileId}
+                                initialAnnotations={pdfAnnotations}
+                                onSave={handleSaveAnnotations}
                             />
-                        )}
+                        </div>) : (<TextArea
+                            label="Job Description"
+                            value={jobDescription}
+                            onChange={(e) => setJobDescription(e.target.value)}
+                            placeholder="Paste your job description here or upload a file..."
+                            rows={15}
+                        />)}
 
-                        <div className="flex justify-between">
-                            <FileUpload
-                                id="jd-file-upload"
-                                label="Upload Job Description"
-                                acceptedFileTypes=".txt,.pdf,.docx,.doc"
-                                helperText="Supported file types: .txt, .pdf, .docx, .doc"
-                                onUpload={handleFileUpload}
-                            />
-                            <Button
-                                variant="primary"
-                                onClick={handleAnalyze}
-                                isLoading={loading}
-                                disabled={isPDF ? pdfAnnotations.length === 0 && !jobDescription.trim() : !jobDescription.trim()}
-                            >
-                                Analyze for Bias
-                            </Button>
-                        </div>
+                    <div className="flex justify-between">
+                        <FileUpload
+                            id="jd-file-upload"
+                            label="Upload Job Description"
+                            acceptedFileTypes=".txt,.pdf,.docx,.doc"
+                            helperText="Supported file types: .txt, .pdf, .docx, .doc"
+                            onUpload={handleFileUpload}
+                        />
+                        <Button
+                            variant="primary"
+                            onClick={handleAnalyze}
+                            isLoading={loading}
+                            disabled={isPDF ? pdfAnnotations.length === 0 && !jobDescription.trim() : !jobDescription.trim()}
+                        >
+                            Analyze for Bias
+                        </Button>
                     </div>
-                ),
-            }
-        ];
+                </div>),
+        }];
 
         if (analysis) {
             tabs.push({
-                id: 'analysis',
-                label: 'Analysis Results',
-                content: (
-                    <div className="space-y-6">
+                id: 'analysis', label: 'Analysis Results', content: (<div className="space-y-6">
                         <div className="flex justify-between items-center">
                             <h2 className="text-xl font-semibold text-neutral-800">
                                 Bias Score: {analysis.score}/100
                             </h2>
                             <div className="text-sm text-neutral-600">
-                                {analysis.biasedTerms.length} potential issues found
+                                {analysis.biasedTerms && Array.isArray(analysis.biasedTerms) ? analysis.biasedTerms.length : 0} potential issues found
                             </div>
                         </div>
 
-                        {isPDF ? (
-                            <div className="bg-neutral-50 border border-neutral-200 rounded-md p-4">
+                        {isPDF ? (<div className="bg-neutral-50 border border-neutral-200 rounded-md p-4">
                                 <p className="text-sm text-neutral-600 mb-3">
                                     Biased terms have been highlighted directly in the PDF. Return to the Editor tab to
                                     view them.
@@ -389,19 +448,14 @@ const JDChecker: React.FC = () => {
                                 >
                                     Back to PDF Viewer
                                 </Button>
-                            </div>
-                        ) : (
-                            <BiasHighlighter text={jobDescription} biasedTerms={analysis.biasedTerms}/>
-                        )}
-                    </div>
-                ),
+                            </div>) : (<BiasHighlighter text={jobDescription} biasedTerms={analysis.biasedTerms}/>)}
+                    </div>),
             });
 
             tabs.push({
                 id: 'improved',
                 label: 'Improved Version',
-                content: (
-                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                content: (<div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
                         <div className="lg:col-span-3">
                             <TextArea
                                 label="Improved Job Description"
@@ -432,16 +486,14 @@ const JDChecker: React.FC = () => {
                                 onUpdate={handleUpdateImprovedText}
                             />
                         </div>
-                    </div>
-                ),
+                    </div>),
             });
         }
 
         return tabs;
     };
 
-    return (
-        <div className="container mx-auto py-6 px-4">
+    return (<div className="container mx-auto py-6 px-4">
             <div className="mb-6">
                 <h1 className="text-2xl font-bold text-neutral-800">Inclusive Job Description Checker</h1>
                 <p className="text-neutral-600 mt-1">
@@ -454,8 +506,7 @@ const JDChecker: React.FC = () => {
             <Card>
                 <Tabs tabs={renderTabs()}/>
             </Card>
-        </div>
-    );
+        </div>);
 };
 
 export default JDChecker;

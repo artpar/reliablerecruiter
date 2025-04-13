@@ -29,9 +29,18 @@ const PDF_LIB_ASSETS = [
 
 // Worker files to cache
 const WORKER_ASSETS = [
+    // PDF Worker files
     '/assets/pdfWorker.js',
     '/assets/workers/pdfWorker.js',
-    '/src/workers/pdfWorker.js'
+    '/src/workers/pdfWorker.js',
+    
+    // PDF Annotation Worker files
+    '/assets/workers/pdfAnnotationWorker.js',
+    '/src/workers/pdfAnnotationWorker.js',
+    
+    // PDF Editor Worker files
+    '/assets/workers/pdfEditorWorker.js',
+    '/src/workers/pdfEditorWorker.js'
 ];
 
 // Install event - Cache static assets
