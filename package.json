@@ -17,6 +17,7 @@
     "@types/react-dom": "^19.1.2",
     "ajv": "^8.17.1",
     "alex": "^11.0.1",
+    "file-saver": "^2.0.5",
     "lodash": "^4.17.21",
     "papaparse": "^5.5.2",
     "pdfjs-dist": "^5.1.91",

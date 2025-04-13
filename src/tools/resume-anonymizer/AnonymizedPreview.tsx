@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPDFFromText } from '../../services/FileProcessingService';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import Tabs, { TabItem } from '../../components/common/Tabs';
@@ -25,6 +26,37 @@ const AnonymizedPreview: React.FC<AnonymizedPreviewProps> = ({
                                                                  onSelectResume,
                                                              }) => {
     const [viewMode, setViewMode] = useState<'anonymized' | 'original' | 'diff'>('anonymized');
+    const [isExporting, setIsExporting] = useState(false);
+    
+    // Function to handle PDF export
+    const handleExportPDF = async (text: string) => {
+        try {
+            setIsExporting(true);
+            const pdfBuffer = await createPDFFromText(text);
+            
+            // Create a blob from the PDF buffer
+            const blob = new Blob([pdfBuffer], { type: 'application/pdf' });
+            
+            // Create a download link
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `anonymized-resume-${Date.now()}.pdf`;
+            
+            // Trigger the download
+            document.body.appendChild(link);
+            link.click();
+            
+            // Clean up
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Error exporting PDF:', error);
+            alert('Failed to export PDF. Please try again.');
+        } finally {
+            setIsExporting(false);
+        }
+    };
 
     if (resumes.length === 0) {
         return (
@@ -124,6 +156,13 @@ const AnonymizedPreview: React.FC<AnonymizedPreviewProps> = ({
                                 onClick={() => setViewMode('diff')}
                             >
                                 Diff View
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleExportPDF(selectedResume.anonymizedText)}
+                            >
+                                Export PDF
                             </Button>
                         </div>
                     </div>

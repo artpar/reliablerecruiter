@@ -100,7 +100,7 @@ export const processPDF = (content: ArrayBuffer): Promise<string> => {
             }
 
             // Use WorkerService to handle the PDF processing
-            WorkerService.executeTask<{content: ArrayBuffer}, string>('pdfWorker', { content })
+            WorkerService.executeTask<{content: ArrayBuffer, action: string}, string>('pdfWorker', { content, action: 'extract' })
                 .then(result => {
                     console.log("Processing PDF", result);
                     resolve(result);
@@ -111,6 +111,70 @@ export const processPDF = (content: ArrayBuffer): Promise<string> => {
                 });
         } catch (error) {
             console.error('Error in processPDF:', error);
+            reject(error instanceof Error ? error : new Error(String(error)));
+        }
+    });
+};
+
+/**
+ * Edit text in a PDF file using a Web Worker
+ */
+export const editPDF = (content: ArrayBuffer, text: string, pageNumber: number = 1): Promise<ArrayBuffer> => {
+    return new Promise((resolve, reject) => {
+        try {
+            // Check if Workers are available in this environment
+            if (typeof Worker === 'undefined') {
+                throw new Error('Web Workers are not supported in this environment');
+            }
+
+            // Use WorkerService to handle the PDF editing
+            WorkerService.executeTask<{content: ArrayBuffer, action: string, text: string, pageNumber: number}, ArrayBuffer>('pdfEditorWorker', { 
+                content, 
+                action: 'edit', 
+                text, 
+                pageNumber 
+            })
+                .then(result => {
+                    console.log("Editing PDF");
+                    resolve(result);
+                })
+                .catch(error => {
+                    console.error('PDF editor worker error:', error);
+                    reject(new Error('Error editing PDF: ' + error.message));
+                });
+        } catch (error) {
+            console.error('Error in editPDF:', error);
+            reject(error instanceof Error ? error : new Error(String(error)));
+        }
+    });
+};
+
+/**
+ * Create a new PDF from text using a Web Worker
+ */
+export const createPDFFromText = (text: string): Promise<ArrayBuffer> => {
+    return new Promise((resolve, reject) => {
+        try {
+            // Check if Workers are available in this environment
+            if (typeof Worker === 'undefined') {
+                throw new Error('Web Workers are not supported in this environment');
+            }
+
+            // Use WorkerService to handle the PDF creation
+            WorkerService.executeTask<{action: string, text: string}, ArrayBuffer>('pdfEditorWorker', { 
+                action: 'create', 
+                text 
+            })
+                .then(result => {
+                    console.log("Creating PDF from text");
+                    resolve(result);
+                })
+                .catch(error => {
+                    console.error('PDF editor worker error:', error);
+                    reject(new Error('Error creating PDF: ' + error.message));
+                });
+        } catch (error) {
+            console.error('Error in createPDFFromText:', error);
             reject(error instanceof Error ? error : new Error(String(error)));
         }
     });
@@ -182,6 +246,8 @@ export default {
     processCSV,
     processExcel,
     processPDF,
+    editPDF,
+    createPDFFromText,
     processText,
     processFile,
     getFileExtension,

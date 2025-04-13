@@ -11,10 +11,17 @@ pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
 // Listen for messages from the main thread
 self.onmessage = async (event) => {
   try {
-    const { content } = event.data;
+    const { content, action } = event.data;
 
-    // Process the PDF
-    const result = await processPDF(content);
+    // Process the PDF based on the action
+    let result;
+    switch (action) {
+      case 'extract':
+        result = await processPDF(content);
+        break;
+      default:
+        throw new Error(`Unknown action: ${action}`);
+    }
 
     // Send the result back to the main thread
     self.postMessage({ success: true, result });

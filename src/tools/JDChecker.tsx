@@ -1,319 +1,459 @@
-// src/tools/JDChecker.tsx
 import React, {useEffect, useState} from 'react';
-import useToast from "../hooks/useToast";
-import {useFile} from "../context/FileContext";
-import AnalysisService from "../services/AnalysisService";
-import FileProcessingService from "../services/FileProcessingService";
-import {isPWA} from '../registerServiceWorker';
-
-// Component imports
-import Tabs from "../components/common/Tabs";
-import Card from "../components/common/Card";
-import JDInput from "./jd-checker/JDInput";
-import FileUpload from "../components/common/FileUpload";
-import Button from "../components/common/Button";
-import Alert from "../components/common/Alert";
-import SuggestionList from "./jd-checker/SuggestionList";
-import JDPreview from "./jd-checker/JDPreview";
-import BiasHighlighter from "./jd-checker/BiasHighlighter";
-import BiasVisualizer from "./jd-checker/BiasVisualizer";
+import {useFile} from '../context/FileContext';
+import Card from '../components/common/Card';
+import Button from '../components/common/Button';
+import Tabs, {TabItem} from '../components/common/Tabs';
+import FileUpload from '../components/common/FileUpload';
+import TextArea from '../components/common/TextArea';
+import SuggestionList from './jd-checker/SuggestionList';
+import PDFAnnotator from '../components/PDFAnnotator';
+import useToast from '../hooks/useToast';
+import analyzeBiasedLanguage from '../services/AnalysisService';
+import PDFAnnotationService, {PDFAnnotation} from '../services/PDFAnnotationService';
+import {BiasHighlighter} from "./jd-checker/BiasHighlighter"
 
 const JDChecker: React.FC = () => {
+    const {files} = useFile();
     const {showToast} = useToast();
-    const {state: fileState} = useFile();
 
-    const [activeTab, setActiveTab] = useState('input');
     const [jobDescription, setJobDescription] = useState('');
-    const [analysisResults, setAnalysisResults] = useState<{
-        biasedTerms: { term: string; index: number; category: string; alternatives: string[] }[];
-        score: number;
-    } | null>(null);
-    const [improvedJD, setImprovedJD] = useState('');
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [isPwaMode, setIsPwaMode] = useState(false);
+    const [improvedJobDescription, setImprovedJobDescription] = useState('');
+    const [analysis, setAnalysis] = useState<{ biasedTerms: any[]; score: number } | null>(null);
+    const [fileId, setFileId] = useState<string | null>(null);
+    const [isPDF, setIsPDF] = useState(false);
+    const [pdfAnnotations, setPdfAnnotations] = useState<PDFAnnotation[]>([]);
+    const [loading, setLoading] = useState(false);
 
-    // Check if running in PWA mode on component mount
+    // Effect to process uploaded file
     useEffect(() => {
-        setIsPwaMode(isPWA());
-    }, []);
-
-    // Analyze job description for biased language
-    const analyzeJobDescription = async (text: string) => {
-        if (!text.trim()) {
-            showToast('Please enter or upload a job description', 'error');
-            return;
+        if (fileId) {
+            const file = files.find(f => f.id === fileId);
+            if (file) {
+                processFile(file);
+            }
         }
+    }, [fileId, files]);
 
-        setIsAnalyzing(true);
-        setJobDescription(text);
-
+    const processFile = async (file: any) => {
+        setLoading(true);
         try {
-            // Analyze the job description
-            const results = await AnalysisService.analyzeBiasedLanguage(text);
-            console.log("Analyzing language: ", results);
-            setAnalysisResults(results);
+            // Check if it's a PDF
+            const isPdfFile = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+            setIsPDF(isPdfFile);
 
-            // Auto-generate improved version
-            if (results.biasedTerms.length > 0) {
-                let improved = text;
+            // For text files, process immediately
+            if (!isPdfFile) {
+                let text = '';
+                if (file.content instanceof ArrayBuffer) {
+                    text = new TextDecoder().decode(file.content);
+                } else {
+                    text = file.content as string;
+                }
 
-                // Apply replacements in reverse order to maintain correct indices
-                [...results.biasedTerms]
-                    .sort((a, b) => b.index - a.index)
-                    .forEach((term) => {
-                        if (term.alternatives && term.alternatives.length > 0) {
-                            const replacement = term.alternatives[0];
-                            improved = improved.substring(0, term.index) + replacement + improved.substring(term.index + term.term.length);
+                setJobDescription(text);
+                setImprovedJobDescription(text);
+            } else {
+                // For PDFs, we'll extract text from annotations in the PDF viewer
+                // Try to load existing annotations
+                if (file.content instanceof ArrayBuffer) {
+                    try {
+                        const annotations = await PDFAnnotationService.extractAnnotations(file.content);
+                        if (annotations.length > 0) {
+                            setPdfAnnotations(annotations);
                         }
-                    });
-
-                setImprovedJD(improved);
-            } else {
-                setImprovedJD(text);
-            }
-
-            // Navigate to results tab
-            setActiveTab('results');
-
-            showToast(
-                results.biasedTerms.length > 0
-                    ? `Found ${results.biasedTerms.length} potentially biased terms`
-                    : 'No biased terms found in the job description',
-                results.biasedTerms.length > 0 ? 'warning' : 'success'
-            );
-
-        } catch (error) {
-            console.error('Error analyzing job description:', error);
-            showToast('Error analyzing job description', 'error');
-        } finally {
-            setIsAnalyzing(false);
-        }
-    };
-
-    // Handle file upload
-    const handleFileUpload = async (files: File[]) => {
-        if (files.length === 0) return;
-
-        const file = files[0];
-
-        try {
-            // Read file content as ArrayBuffer
-            const fileContentBuffer = await file.arrayBuffer();
-
-            // Process the file
-            const content = await FileProcessingService.processFile(fileContentBuffer, file.name);
-
-            // Extract text content based on file type
-            let textContent = '';
-
-            if (typeof content === 'string') {
-                textContent = content;
-            } else if (content && 'data' in content) {
-                // For CSV data, join all fields with spaces
-                textContent = content.data
-                    .map((row) => Object.values(row).join(' '))
-                    .join('\n');
-            }
-
-            if (textContent) {
-                // Analyze the extracted text
-                analyzeJobDescription(textContent);
-            } else {
-                showToast('Could not extract text from the file', 'error');
+                    } catch (error) {
+                        console.error('Error loading annotations:', error);
+                    }
+                }
             }
         } catch (error) {
             console.error('Error processing file:', error);
-            showToast(`Error processing file: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
+            showToast('Error processing file', 'error');
+        } finally {
+            setLoading(false);
         }
     };
 
-    // Handle updating the job description with suggestions
-    const handleUpdateJobDescription = (updatedJD: string) => {
-        setImprovedJD(updatedJD);
+    const handleFileUpload = async (files: File[]) => {
+        if (files.length > 0) {
+            // Reset state
+            setFileId(null);
+            setAnalysis(null);
+            setPdfAnnotations([]);
+
+            // The file ID will be available in the FileContext after upload
+            setTimeout(() => {
+                const uploadedFileId = `file-${Date.now()}-${files[0].name.replace(/[^a-zA-Z0-9]/g, '-')}`;
+                setFileId(uploadedFileId);
+            }, 100);
+        }
+    };
+
+    const handleAnalyze = () => {
+        if (!jobDescription.trim()) {
+            showToast('Please enter a job description', 'warning');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const result = analyzeBiasedLanguage(jobDescription);
+            setAnalysis(result);
+            setImprovedJobDescription(jobDescription);
+
+            // If it's a PDF, create annotations for biased terms
+            if (isPDF && fileId) {
+                createBiasAnnotations(result.biasedTerms);
+            }
+        } catch (error) {
+            console.error('Analysis error:', error);
+            showToast('Error analyzing job description', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Convert biased terms to PDF annotations
+    const createBiasAnnotations = async (biasedTerms: any[]) => {
+        // If there are existing bias annotations, remove them
+        const filteredAnnotations = pdfAnnotations.filter(
+            ann => ann.type !== 'highlight' || !ann.id.startsWith('bias-')
+        );
+
+        // We need to search the PDF for each biased term
+        const file = files.find(f => f.id === fileId);
+        if (!file || !(file.content instanceof ArrayBuffer)) return;
+
+        const newAnnotations: PDFAnnotation[] = [];
+
+        try {
+            // For each biased term, search the PDF and create highlight annotations
+            for (const term of biasedTerms) {
+                const searchResults = await PDFAnnotationService.searchText(
+                    file.content,
+                    term.term,
+                    {matchCase: false, wholeWord: true}
+                );
+
+                for (const result of searchResults) {
+                    const color = getColorForCategory(term.category);
+
+                    newAnnotations.push({
+                        id: `bias-${term.term}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                        type: 'highlight',
+                        pageNumber: result.pageNumber,
+                        rect: result.rect,
+                        color,
+                        content: `Biased term (${term.category}): ${term.term}\nSuggested alternatives: ${term.alternatives.join(', ')}`
+                    });
+                }
+            }
+
+            // Update annotations
+            const combinedAnnotations = [...filteredAnnotations, ...newAnnotations];
+            setPdfAnnotations(combinedAnnotations);
+
+            // Show count
+            showToast(`Created ${newAnnotations.length} annotations for biased terms`, 'info');
+        } catch (error) {
+            console.error('Error creating bias annotations:', error);
+            showToast('Error highlighting biased terms in PDF', 'error');
+        }
+    };
+
+    // Get color for bias category
+    const getColorForCategory = (category: string): string => {
+        switch (category.toLowerCase()) {
+            case 'gender':
+                return 'rgba(255, 105, 180, 0.3)'; // Pink
+            case 'age':
+                return 'rgba(100, 149, 237, 0.3)'; // Blue
+            case 'race':
+                return 'rgba(147, 112, 219, 0.3)'; // Purple
+            default:
+                return 'rgba(255, 255, 0, 0.3)'; // Yellow
+        }
+    };
+
+    const handleUpdateImprovedText = (updatedText: string) => {
+        setImprovedJobDescription(updatedText);
+    };
+
+    const handleSaveImproved = async () => {
+        if (!fileId) {
+            showToast('No file to save to', 'warning');
+            return;
+        }
+
+        try {
+            setLoading(true);
+
+            const file = files.find(f => f.id === fileId);
+            if (!file) {
+                showToast('File not found', 'error');
+                return;
+            }
+
+            if (isPDF && file.content instanceof ArrayBuffer) {
+                // For PDFs, create edit annotations for the improvements
+                const editAnnotations: PDFAnnotation[] = [];
+
+                // In a real implementation, you would compare the original and improved
+                // text to create specific edit annotations for each change
+                // For this demo, we'll create a simple note annotation
+
+                editAnnotations.push({
+                    id: `edit-improvements-${Date.now()}`,
+                    type: 'note',
+                    pageNumber: 1,
+                    rect: {x: 50, y: 50, width: 200, height: 150},
+                    content: 'Improvements made to job description:\n\n' + improvedJobDescription.substring(0, 500) +
+                        (improvedJobDescription.length > 500 ? '...' : '')
+                });
+
+                // Combine with existing annotations
+                const updatedAnnotations = [...pdfAnnotations.filter(ann => !ann.id.startsWith('edit-improvements-')), ...editAnnotations];
+
+                // Save the annotations to the PDF
+                const updatedPdfBuffer = await PDFAnnotationService.saveAnnotations(
+                    file.content,
+                    updatedAnnotations
+                );
+
+                // Update the file in FileContext
+                const {dispatch} = useFile();
+                dispatch({
+                    type: 'UPDATE_FILE_CONTENT',
+                    payload: {
+                        id: fileId,
+                        content: updatedPdfBuffer,
+                    },
+                });
+
+                setPdfAnnotations(updatedAnnotations);
+                showToast('Improvements saved to PDF as annotations', 'success');
+            } else {
+                // For text files, just update the content
+                const {dispatch} = useFile();
+                dispatch({
+                    type: 'UPDATE_FILE_CONTENT',
+                    payload: {
+                        id: fileId,
+                        content: improvedJobDescription,
+                    },
+                });
+
+                showToast('Improvements saved', 'success');
+            }
+        } catch (error) {
+            console.error('Error saving improvements:', error);
+            showToast('Error saving improvements', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Handle PDF text extraction from highlighted regions
+    const handlePDFTextExtracted = (annotations: PDFAnnotation[]) => {
+        // Combine all text from edit annotations
+        let extractedText = '';
+
+        const editAnnotations = annotations.filter(ann => ann.type === 'edit' && ann.content);
+        if (editAnnotations.length > 0) {
+            extractedText = editAnnotations.map(ann => ann.content).join('\n\n');
+        }
+
+        if (extractedText) {
+            setJobDescription(extractedText);
+            setImprovedJobDescription(extractedText);
+        }
+    };
+
+    // Handle PDF annotation save
+    const handleSaveAnnotations = async (annotations: PDFAnnotation[], pdfFileId: string) => {
+        try {
+            setLoading(true);
+
+            const file = files.find(f => f.id === pdfFileId);
+            if (!file || !(file.content instanceof ArrayBuffer)) {
+                showToast('PDF file not found or invalid', 'error');
+                return;
+            }
+
+            // Save annotations to the PDF
+            const updatedPdfBuffer = await PDFAnnotationService.saveAnnotations(
+                file.content,
+                annotations
+            );
+
+            // Update file in context
+            const {dispatch} = useFile();
+            dispatch({
+                type: 'UPDATE_FILE_CONTENT',
+                payload: {
+                    id: pdfFileId,
+                    content: updatedPdfBuffer,
+                },
+            });
+
+            // Update local state
+            setPdfAnnotations(annotations);
+
+            showToast('PDF annotations saved successfully', 'success');
+
+            // Extract text from edit annotations for analysis
+            handlePDFTextExtracted(annotations);
+        } catch (error) {
+            console.error('Error saving PDF annotations:', error);
+            showToast('Error saving PDF annotations', 'error');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const renderTabs = (): TabItem[] => {
+        const tabs: TabItem[] = [
+            {
+                id: 'editor',
+                label: 'Editor',
+                content: (
+                    <div className="space-y-4">
+                        {isPDF && fileId ? (
+                            <div className="h-[600px]">
+                                <PDFAnnotator
+                                    fileId={fileId}
+                                    initialAnnotations={pdfAnnotations}
+                                    onSave={handleSaveAnnotations}
+                                />
+                            </div>
+                        ) : (
+                            <TextArea
+                                label="Job Description"
+                                value={jobDescription}
+                                onChange={(e) => setJobDescription(e.target.value)}
+                                placeholder="Paste your job description here or upload a file..."
+                                rows={15}
+                            />
+                        )}
+
+                        <div className="flex justify-between">
+                            <FileUpload
+                                id="jd-file-upload"
+                                label="Upload Job Description"
+                                acceptedFileTypes=".txt,.pdf,.docx,.doc"
+                                helperText="Supported file types: .txt, .pdf, .docx, .doc"
+                                onUpload={handleFileUpload}
+                            />
+                            <Button
+                                variant="primary"
+                                onClick={handleAnalyze}
+                                isLoading={loading}
+                                disabled={isPDF ? pdfAnnotations.length === 0 && !jobDescription.trim() : !jobDescription.trim()}
+                            >
+                                Analyze for Bias
+                            </Button>
+                        </div>
+                    </div>
+                ),
+            }
+        ];
+
+        if (analysis) {
+            tabs.push({
+                id: 'analysis',
+                label: 'Analysis Results',
+                content: (
+                    <div className="space-y-6">
+                        <div className="flex justify-between items-center">
+                            <h2 className="text-xl font-semibold text-neutral-800">
+                                Bias Score: {analysis.score}/100
+                            </h2>
+                            <div className="text-sm text-neutral-600">
+                                {analysis.biasedTerms.length} potential issues found
+                            </div>
+                        </div>
+
+                        {isPDF ? (
+                            <div className="bg-neutral-50 border border-neutral-200 rounded-md p-4">
+                                <p className="text-sm text-neutral-600 mb-3">
+                                    Biased terms have been highlighted directly in the PDF. Return to the Editor tab to
+                                    view them.
+                                </p>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                        const editorTab = document.getElementById('tab-editor');
+                                        if (editorTab) editorTab.click();
+                                    }}
+                                >
+                                    Back to PDF Viewer
+                                </Button>
+                            </div>
+                        ) : (
+                            <BiasHighlighter text={jobDescription} biasedTerms={analysis.biasedTerms}/>
+                        )}
+                    </div>
+                ),
+            });
+
+            tabs.push({
+                id: 'improved',
+                label: 'Improved Version',
+                content: (
+                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                        <div className="lg:col-span-3">
+                            <TextArea
+                                label="Improved Job Description"
+                                value={improvedJobDescription}
+                                onChange={(e) => setImprovedJobDescription(e.target.value)}
+                                rows={15}
+                            />
+                            <div className="mt-4 flex justify-end">
+                                <Button
+                                    variant="primary"
+                                    onClick={handleSaveImproved}
+                                    isLoading={loading}
+                                >
+                                    {isPDF ? 'Save as PDF Annotation' : 'Save Improved Version'}
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div className="lg:col-span-2">
+                            <h3 className="text-lg font-medium text-neutral-800 mb-3">
+                                Suggestions
+                            </h3>
+
+                            <SuggestionList
+                                biasedTerms={analysis.biasedTerms}
+                                originalText={jobDescription}
+                                improvedText={improvedJobDescription}
+                                onUpdate={handleUpdateImprovedText}
+                            />
+                        </div>
+                    </div>
+                ),
+            });
+        }
+
+        return tabs;
     };
 
     return (
-        <div>
-            <h1 className="text-3xl font-bold ">Inclusive JD Checker</h1>
-            <p className="mt-2  max-w-3xl">
-                Scan job descriptions for biased or exclusionary language and get suggestions
-                for more inclusive alternatives.
-                {isPwaMode && <span className="ml-2 text-primary-600">(Running in PWA mode)</span>}
-            </p>
-
-            <div className="mt-6">
-                <Tabs
-                    tabs={[
-                        {
-                            id: 'input',
-                            label: 'Input JD',
-                            content: (
-                                <Card className="mt-4 bg-white dark:bg-neutral-800 ">
-                                    <h2 className="text-xl font-semibold  mb-4 dark:text-white">Enter Job
-                                        Description</h2>
-
-                                    <JDInput
-                                        onAnalyze={analyzeJobDescription}
-                                        isAnalyzing={isAnalyzing}
-                                    />
-
-                                    <div className="mt-6">
-                                        <h3 className="text-lg font-medium  mb-2">Or Upload a File</h3>
-                                        <FileUpload
-                                            id="jd-file-upload"
-                                            acceptedFileTypes=".txt,.doc,.docx,.pdf,.html"
-                                            helperText="Upload a job description file (TXT, DOC, DOCX, PDF, HTML)"
-                                            onUpload={handleFileUpload}
-                                        />
-                                        {isPwaMode && (
-                                            <p className="mt-2 text-xs text-primary-600">
-                                                <svg className="inline-block w-4 h-4 mr-1" fill="none"
-                                                     stroke="currentColor" viewBox="0 0 24 24"
-                                                     xmlns="http://www.w3.org/2000/svg">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                                          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                                </svg>
-                                                PDF processing is running locally on your device in PWA mode
-                                            </p>
-                                        )}
-                                    </div>
-
-                                    <div className="mt-6 flex justify-end">
-                                        <Button
-                                            onClick={() => {
-                                                if (jobDescription) {
-                                                    analyzeJobDescription(jobDescription);
-                                                } else {
-                                                    showToast('Please enter or upload a job description', 'error');
-                                                }
-                                            }}
-                                            isLoading={isAnalyzing}
-                                            disabled={isAnalyzing}
-                                            variant="primary"
-                                            rightIcon={
-                                                <svg className="w-5 h-5" fill="none" stroke="currentColor"
-                                                     viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                                          d="M9 5l7 7-7 7"/>
-                                                </svg>
-                                            }
-                                        >
-                                            Analyze Job Description
-                                        </Button>
-                                    </div>
-                                </Card>
-                            ),
-                        },
-                        {
-                            id: 'results',
-                            label: 'Results',
-                            content: (
-                                <div className="mt-4">
-                                    {analysisResults ? (
-                                        <>
-                                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                                <Card>
-                                                    <h2 className="text-xl font-semibold  mb-4">Analysis Results</h2>
-
-                                                    <div className="mb-4">
-                                                        <div className="flex items-center mb-2">
-                                                            <span className="font-medium  mr-2">Bias Score:</span>
-                                                            <div
-                                                                className="relative w-full h-4 bg-neutral-200 rounded-full overflow-hidden">
-                                                                <div
-                                                                    className={`absolute top-0 left-0 h-full ${
-                                                                        analysisResults.score < 20
-                                                                            ? 'bg-success-500'
-                                                                            : analysisResults.score < 50
-                                                                                ? 'bg-warning-500'
-                                                                                : 'bg-danger-500'
-                                                                    }`}
-                                                                    style={{width: `${analysisResults.score}%`}}
-                                                                />
-                                                            </div>
-                                                            <span
-                                                                className="ml-2 font-medium">{analysisResults.score}%</span>
-                                                        </div>
-
-                                                        <p className="text-sm ">
-                                                            {analysisResults.score < 20
-                                                                ? 'This job description has low bias and is mostly inclusive.'
-                                                                : analysisResults.score < 50
-                                                                    ? 'This job description has some biased language that could be improved.'
-                                                                    : 'This job description contains significant biased language and needs improvement.'
-                                                            }
-                                                        </p>
-                                                    </div>
-
-                                                    {analysisResults.biasedTerms.length > 0 ? (
-                                                        <div>
-                                                            <h3 className="font-medium  mb-2">Biased Terms Found:</h3>
-                                                            <BiasHighlighter
-                                                                text={jobDescription}
-                                                                biasedTerms={analysisResults.biasedTerms}
-                                                            />
-                                                        </div>
-                                                    ) : (
-                                                        <Alert type="success" title="No biased terms found">
-                                                            This job description uses inclusive language. Great job!
-                                                        </Alert>
-                                                    )}
-                                                </Card>
-
-                                                <Card>
-                                                    <h2 className="text-xl font-semibold  mb-4">Suggested
-                                                        Improvements</h2>
-
-                                                    {analysisResults.biasedTerms.length > 0 ? (
-                                                        <SuggestionList
-                                                            biasedTerms={analysisResults.biasedTerms}
-                                                            originalText={jobDescription}
-                                                            onUpdate={handleUpdateJobDescription}
-                                                            improvedText={improvedJD}
-                                                        />
-                                                    ) : (
-                                                        <p className="">
-                                                            No improvements needed. Your job description already uses
-                                                            inclusive language.
-                                                        </p>
-                                                    )}
-                                                </Card>
-                                            </div>
-
-                                            {analysisResults.biasedTerms.length > 0 && (
-                                                <Card className="mt-6">
-                                                    <h2 className="text-xl font-semibold  mb-4">Bias Visualization</h2>
-                                                    <BiasVisualizer biasedTerms={analysisResults.biasedTerms}/>
-                                                </Card>
-                                            )}
-
-                                            <Card className="mt-6">
-                                                <h2 className="text-xl font-semibold  mb-4">Improved Job
-                                                    Description</h2>
-                                                <JDPreview
-                                                    originalText={jobDescription}
-                                                    improvedText={improvedJD}
-                                                    biasedTerms={analysisResults.biasedTerms}
-                                                />
-                                            </Card>
-                                        </>
-                                    ) : (
-                                        <Card>
-                                            <Alert type="info">
-                                                Please enter or upload a job description and click "Analyze Job
-                                                Description"
-                                                to see results.
-                                            </Alert>
-                                        </Card>
-                                    )}
-                                </div>
-                            ),
-                        },
-                    ]}
-                    activeTabId={activeTab}
-                    onChange={setActiveTab}
-                />
+        <div className="container mx-auto py-6 px-4">
+            <div className="mb-6">
+                <h1 className="text-2xl font-bold text-neutral-800">Inclusive Job Description Checker</h1>
+                <p className="text-neutral-600 mt-1">
+                    Analyze job descriptions for potentially biased language and get suggestions for more inclusive
+                    alternatives.
+                    {isPDF && " You can annotate the PDF directly to highlight and edit biased terms."}
+                </p>
             </div>
+
+            <Card>
+                <Tabs tabs={renderTabs()}/>
+            </Card>
         </div>
     );
 };

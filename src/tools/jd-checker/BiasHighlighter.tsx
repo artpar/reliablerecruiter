@@ -10,7 +10,7 @@ interface BiasHighlighterProps {
   }[];
 }
 
-const BiasHighlighter: React.FC<BiasHighlighterProps> = ({ text, biasedTerms }) => {
+export const BiasHighlighter: React.FC<BiasHighlighterProps> = ({ text, biasedTerms }) => {
   // Sort biased terms by index
   const sortedTerms = [...biasedTerms].sort((a, b) => a.index - b.index);
 

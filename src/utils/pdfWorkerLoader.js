@@ -14,6 +14,15 @@ export function createPdfWorker() {
         type: 'module'
     });
 }
+export function createPdfEditorWorker() {
+    // For both development and production, use the worker from the public directory
+    // This ensures the worker is available in both environments
+    const workerUrl = new URL('/workers/pdfEditorWorker.js', window.location.origin);
+
+    return new Worker(workerUrl, {
+        type: 'module'
+    });
+}
 
 /**
  * Process a PDF file to extract text

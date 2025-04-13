@@ -6,6 +6,7 @@ import DataTable, { ColumnDefinition } from '../../components/common/DataTable';
 import useToast from '../../hooks/useToast';
 import { AnonymizationSettings } from '../ResumeAnonymizer';
 import { exportToText, exportToHTML, exportToCSV, exportToJSON } from '../../services/ExportService';
+import { createPDFFromText } from '../../services/FileProcessingService';
 import { saveAs } from 'file-saver';
 
 interface AnonymizedResume {
@@ -21,7 +22,7 @@ interface BatchExportProps {
     resumes: AnonymizedResume[];
 }
 
-type ExportFormat = 'txt' | 'html' | 'csv' | 'json' | 'zip';
+type ExportFormat = 'txt' | 'html' | 'csv' | 'json' | 'zip' | 'pdf';
 
 export const BatchExport: React.FC<BatchExportProps> = ({ resumes }) => {
     if (resumes.length === 0) {
@@ -138,11 +139,12 @@ export const BatchExport: React.FC<BatchExportProps> = ({ resumes }) => {
         { value: 'html', label: 'HTML Files (.html)' },
         { value: 'csv', label: 'CSV File (all resumes in one file)' },
         { value: 'json', label: 'JSON File (all resumes in one file)' },
+        { value: 'pdf', label: 'PDF Files (.pdf)' },
         { value: 'zip', label: 'ZIP Archive (all formats)' }
     ];
 
     // Helper function to export a single resume
-    const handleSingleExport = (resume: AnonymizedResume) => {
+    const handleSingleExport = async (resume: AnonymizedResume) => {
         const { fileName, anonymizedText } = resume;
         const baseName = fileName.split('.')[0];
 
@@ -170,6 +172,12 @@ export const BatchExport: React.FC<BatchExportProps> = ({ resumes }) => {
                         { fileName, content: anonymizedText, exportDate: new Date().toISOString() },
                         { filename: `${baseName}-anonymized.json`, pretty: true }
                     );
+                    break;
+                case 'pdf':
+                    // Create PDF from anonymized text
+                    const pdfBuffer = await createPDFFromText(anonymizedText);
+                    const blob = new Blob([pdfBuffer], { type: 'application/pdf' });
+                    saveAs(blob, `${baseName}-anonymized.pdf`);
                     break;
                 case 'zip':
                     // In a real implementation, this would create a zip with multiple formats
