@@ -296,7 +296,7 @@ const JDChecker: React.FC = () => {
                         newAnnotations.push(defaultAnnotation);
                     }
                 } catch (termError) {
-                    conso1le.error(`Error processing term "${term.term}":`, termError);
+                    console.error(`Error processing term "${term.term}":`, termError);
                 }
             }
 

@@ -1,21 +1,20 @@
 import serviceWorkerRegistration from './ServiceWorkerRegistrationService';
+import { executePDFGeneralTask, PDFTaskType } from '../workers/PDFWorkerManager';
 
 /**
  * Service for initializing and configuring PDF libraries
  */
 
-// PDF worker message types
-interface PDFWorkerMessage {
-  action: 'extract' | 'search' | 'annotate';
-  content: ArrayBuffer;
-  options?: Record<string, any>;
-}
-
-// PDF worker response types
-interface PDFWorkerResponse {
-  success: boolean;
-  result?: any;
-  error?: string;
+// Search result interface
+export interface SearchResult {
+  pageNumber: number;
+  text: string;
+  rect: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
 }
 
 /**
@@ -25,71 +24,22 @@ interface PDFWorkerResponse {
  * @param workerUrl URL to the PDF.js worker script (optional)
  */
 export const initPDFLibrary = async (workerUrl?: string) => {
-    // If no worker URL is provided, attempt to use a CDN version
-    const defaultWorkerUrl = 'https://unpkg.com/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
-    const url = workerUrl || defaultWorkerUrl;
+  // If no worker URL is provided, attempt to use a CDN version
+  const defaultWorkerUrl = 'https://unpkg.com/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
+  const url = workerUrl || defaultWorkerUrl;
 
-    // Set the global PDF.js worker URL
-    // This is used by ts-pdf internally
-    (window as any).pdfjsWorkerSrc = url;
+  // Set the global PDF.js worker URL
+  // This is used by ts-pdf internally
+  (window as any).pdfjsWorkerSrc = url;
 
-    // Initialize the service worker system
-    await serviceWorkerRegistration.initialize();
+  // Initialize the service worker system
+  await serviceWorkerRegistration.initialize();
 
-    return {
-        workerUrl: url,
-        serviceWorkerActive: serviceWorkerRegistration.isServiceWorkerActive('/sw.js')
-    };
+  return {
+    workerUrl: url,
+    serviceWorkerActive: serviceWorkerRegistration.isServiceWorkerActive('/sw.js')
+  };
 };
-
-/**
- * Execute a task in the PDF worker via the service worker
- *
- * @param action The action to perform
- * @param data The data to process
- * @param options Additional options
- * @returns Promise with the result
- */
-async function executePDFTask<T>(
-    action: PDFWorkerMessage['action'],
-    data: ArrayBuffer,
-    options?: Record<string, any>
-): Promise<T> {
-    return new Promise((resolve, reject) => {
-        // Create a unique message channel for this request
-        const messageChannel = new MessageChannel();
-
-        // Set up the response handler
-        messageChannel.port1.onmessage = (event) => {
-            const response = event.data as PDFWorkerResponse;
-
-            if (response.success) {
-                resolve(response.result as T);
-            } else {
-                reject(new Error(response.error || 'Unknown error in PDF processing'));
-            }
-
-            // Clean up
-            messageChannel.port1.close();
-        };
-
-        // Check if service worker is active
-        if (!navigator.serviceWorker.controller) {
-            reject(new Error('Service worker is not active. Please refresh the page.'));
-            return;
-        }
-
-        // Send the message to the service worker
-        navigator.serviceWorker.controller.postMessage({
-            type: 'PDF_TASK',
-            payload: {
-                action,
-                content: data,
-                options
-            }
-        }, [messageChannel.port2]);
-    });
-}
 
 /**
  * Extract text content from a PDF
@@ -98,47 +48,115 @@ async function executePDFTask<T>(
  * @returns Promise with the extracted text
  */
 export const extractTextFromPDF = async (pdfBuffer: ArrayBuffer): Promise<string> => {
-    try {
-        // Make sure service worker is initialized
-        if (!serviceWorkerRegistration.isServiceWorkerActive('/sw.js')) {
-            await serviceWorkerRegistration.initialize();
-        }
-
-        // Use the service worker to process the PDF
-        return await executePDFTask<string>('extract', pdfBuffer);
-    } catch (error) {
-        console.error('Failed to extract text from PDF:', error);
-
-        // Fallback to direct processing if service worker fails
-        try {
-            // Dynamic import of the PDF.js library for direct processing
-            const pdfjs = await import('pdfjs-dist');
-            const loadingTask = pdfjs.getDocument({ data: new Uint8Array(pdfBuffer) });
-            const pdf = await loadingTask.promise;
-
-            let fullText = '';
-
-            // Extract text from each page
-            for (let i = 1; i <= pdf.numPages; i++) {
-                const page = await pdf.getPage(i);
-                const textContent = await page.getTextContent();
-
-                // Combine text items
-                const pageText = textContent.items
-                    .map((item: any) => item.str)
-                    .join(' ');
-
-                fullText += pageText + '\n\n';
-            }
-
-            return fullText;
-        } catch (fallbackError) {
-            throw new Error(`Text extraction failed: ${error instanceof Error ? error.message : String(error)}`);
-        }
+  try {
+    // Make sure service worker is initialized
+    if (!serviceWorkerRegistration.isServiceWorkerActive('/sw.js')) {
+      await serviceWorkerRegistration.initialize();
     }
+
+    // Use the service worker to process the PDF
+    return await executePDFGeneralTask<string>('extract', pdfBuffer);
+  } catch (error) {
+    console.error('Failed to extract text from PDF:', error);
+
+    // Fallback to direct processing if service worker fails
+    try {
+      // Dynamic import of the PDF.js library for direct processing
+      const pdfjs = await import('pdfjs-dist');
+      
+      // Set worker source for direct processing
+      const workerVersion = '4.10.38';
+      pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${workerVersion}/build/pdf.worker.min.mjs`;
+      
+      // Create a copy of the ArrayBuffer
+      const pdfDataCopy = new Uint8Array(pdfBuffer.slice(0));
+
+      // Load the PDF
+      const loadingTask = pdfjs.getDocument({ data: pdfDataCopy });
+      const pdf = await loadingTask.promise;
+
+      let fullText = '';
+
+      // Extract text from each page
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+
+        // Combine text items
+        const pageText = textContent.items
+          .map((item: any) => item.str)
+          .join(' ');
+
+        fullText += pageText + '\n\n';
+      }
+
+      return fullText.trim();
+    } catch (fallbackError) {
+      throw new Error(`Text extraction failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+};
+
+/**
+ * Search for text in a PDF
+ *
+ * @param pdfBuffer The PDF file as an ArrayBuffer
+ * @param searchText The text to search for
+ * @param options Search options
+ * @returns Promise with search results
+ */
+export const searchTextInPDF = async (
+  pdfBuffer: ArrayBuffer,
+  searchText: string,
+  options: { matchCase?: boolean; wholeWord?: boolean } = {}
+): Promise<SearchResult[]> => {
+  try {
+    // Make sure service worker is initialized
+    if (!serviceWorkerRegistration.isServiceWorkerActive('/sw.js')) {
+      await serviceWorkerRegistration.initialize();
+    }
+
+    // Use the service worker to search the PDF
+    return await executePDFGeneralTask<SearchResult[]>('search', pdfBuffer, {
+      searchText,
+      ...options
+    });
+  } catch (error) {
+    console.error('Error searching PDF:', error);
+    throw new Error(`PDF search failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+};
+
+/**
+ * Execute a PDF task with fallback to direct processing
+ * 
+ * @param action The PDF task to perform
+ * @param pdfBuffer The PDF content
+ * @param options Additional options
+ * @returns Promise with the result
+ */
+export const executePDFTaskWithFallback = async <T>(
+  action: PDFTaskType,
+  pdfBuffer: ArrayBuffer,
+  options?: Record<string, any>
+): Promise<T> => {
+  try {
+    // Make sure service worker is initialized
+    if (!serviceWorkerRegistration.isServiceWorkerActive('/sw.js')) {
+      await serviceWorkerRegistration.initialize();
+    }
+
+    // Use the service worker to process the PDF
+    return await executePDFGeneralTask<T>(action, pdfBuffer, options);
+  } catch (error) {
+    console.error(`Failed to execute PDF task ${action}:`, error);
+    throw new Error(`PDF task ${action} failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
 };
 
 export default {
-    initPDFLibrary,
-    extractTextFromPDF
+  initPDFLibrary,
+  extractTextFromPDF,
+  searchTextInPDF,
+  executePDFTaskWithFallback
 };
