@@ -1,25 +1,31 @@
-import React, { useEffect, useState } from 'react';
-import { useFile } from '../context/FileContext';
+import React, {useEffect, useState} from 'react';
+import {useFile} from '../context/FileContext';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
-import Tabs, { TabItem } from '../components/common/Tabs';
+import Tabs, {TabItem} from '../components/common/Tabs';
 import FileUpload from '../components/common/FileUpload';
 import TextArea from '../components/common/TextArea';
 import SuggestionList from './jd-checker/SuggestionList';
-import PDFAnnotator, { PDFAnnotation } from '../components/PDFAnnotator';
+import PDFAnnotator, {PDFAnnotation} from '../components/PDFAnnotator';
 import useToast from '../hooks/useToast';
-import { analyzeBiasedLanguage } from '../services/AnalyzeBiasedLanguage';
-import { BiasHighlighter } from "./jd-checker/BiasHighlighter";
+import {analyzeBiasedLanguage} from '../services/AnalyzeBiasedLanguage';
+import {BiasHighlighter} from "./jd-checker/BiasHighlighter";
+
+import {searchText} from '../services/PDFAnnotationService';
 
 // No need to initialize here - PDFAnnotator handles it internally now
 // The worker source is set in the PDFAnnotator component and will be used in extractBasicTextFromPDF
 const JDChecker: React.FC = () => {
-    const { files, dispatch } = useFile();
-    const { showToast } = useToast();
+    const {files, dispatch} = useFile();
+    const {showToast} = useToast();
 
     const [jobDescription, setJobDescription] = useState<string>('');
     const [improvedJobDescription, setImprovedJobDescription] = useState<string>('');
-    const [analysis, setAnalysis] = useState<{ biasedTerms: any[]; score: number; categoryScores?: Record<string, number> } | null>(null);
+    const [analysis, setAnalysis] = useState<{
+        biasedTerms: any[];
+        score: number;
+        categoryScores?: Record<string, number>
+    } | null>(null);
     const [fileId, setFileId] = useState<string | null>(null);
     const [isPDF, setIsPDF] = useState(false);
     const [pdfAnnotations, setPdfAnnotations] = useState<PDFAnnotation[]>([]);
@@ -233,7 +239,6 @@ const JDChecker: React.FC = () => {
             }
 
             // Import the PDFAnnotationService
-            const { searchText } = await import('../services/PDFAnnotationService');
 
             // Create new bias highlight annotations
             const newAnnotations: PDFAnnotation[] = [];
@@ -500,7 +505,7 @@ const JDChecker: React.FC = () => {
                                 </Button>
                             </div>
                         ) : (
-                            <BiasHighlighter text={jobDescription} biasedTerms={analysis.biasedTerms} />
+                            <BiasHighlighter text={jobDescription} biasedTerms={analysis.biasedTerms}/>
                         )}
                     </div>
                 ),
@@ -561,7 +566,7 @@ const JDChecker: React.FC = () => {
             </div>
 
             <Card>
-                <Tabs tabs={renderTabs()} />
+                <Tabs tabs={renderTabs()}/>
             </Card>
         </div>
     );

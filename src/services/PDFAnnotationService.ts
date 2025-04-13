@@ -4,6 +4,7 @@
 import serviceWorkerRegistration from './ServiceWorkerRegistrationService';
 import { executePDFAnnotationTask } from '../workers/PDFWorkerManager';
 import { SearchResult } from './PDFService';
+import {WorkerService} from "./WorkerService";
 
 // PDFAnnotation interface
 export interface PDFAnnotation {
@@ -53,6 +54,12 @@ export const searchText = async (
     }
 
     // Use the service worker to search the PDF
+    return await WorkerService.executeTask('pdfSearchWorker', {
+      content: pdfData,
+      action: "search",
+      searchText: searchText,
+      options: options
+    });
     return await executePDFAnnotationTask<SearchResult[]>('search', pdfData, {
       searchText,
       ...options

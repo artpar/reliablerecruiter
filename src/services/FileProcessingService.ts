@@ -242,13 +242,59 @@ export const processFile = async (
     }
 };
 
+/**
+ * Search text in a PDF file using a Web Worker
+ */
+export interface PDFSearchOptions {
+    matchCase?: boolean;
+    wholeWord?: boolean;
+}
+
+export interface PDFSearchResult {
+    pageNumber: number;
+    text: string;
+    rect: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+    };
+}
+
+export const searchPDF = (content: ArrayBuffer, searchText: string, options: PDFSearchOptions = {}): Promise<PDFSearchResult[]> => {
+    return new Promise((resolve, reject) => {
+        try {
+            // Check if Workers are available in this environment
+            if (typeof Worker === 'undefined') {
+                throw new Error('Web Workers are not supported in this environment');
+            }
+
+            // Use WorkerService to handle the PDF search
+            WorkerService.executeTask<{content: ArrayBuffer, searchText: string, options: PDFSearchOptions, action: string}, PDFSearchResult[]>(
+                'pdfSearchWorker', 
+                { content, searchText, options, action: 'search' }
+            )
+                .then(results => {
+                    console.log("PDF search results", results);
+                    resolve(results);
+                })
+                .catch(error => {
+                    console.error('PDF search worker error:', error);
+                    reject(new Error('Error searching PDF: ' + error.message));
+                });
+        } catch (error) {
+            console.error('Error in searchPDF:', error);
+            reject(error instanceof Error ? error : new Error(String(error)));
+        }
+    });
+};
+
 export default {
     processCSV,
     processExcel,
     processPDF,
-    editPDF,
-    createPDFFromText,
     processText,
-    processFile,
     getFileExtension,
+    processFile,
+    searchPDF
 };

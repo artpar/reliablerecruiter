@@ -1,14 +1,11 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {AnnotationBase, TsPdfViewer, TsPdfViewerOptions} from 'ts-pdf';
 import Card from './common/Card';
-import Button from './common/Button';
 import {useFile} from '../context/FileContext';
 import useToast from '../hooks/useToast';
 
-// Set the PDF.js worker source path globally
-// This needs to be done before any ts-pdf components are instantiated
+// Set the PDF.js worker source path globally only once
 if (typeof window !== 'undefined' && !window.pdfjsWorkerSrc) {
-    // Using CDN for the worker file - in production, host this file yourself
     window.pdfjsWorkerSrc = 'https://unpkg.com/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
     console.log('PDF.js worker source path set:', window.pdfjsWorkerSrc);
 }
@@ -30,7 +27,6 @@ interface PDFAnnotatorProps {
     height?: string;
     className?: string;
     initialAnnotations?: PDFAnnotation[];
-    key?: string; // Added key prop for React to detect changes
 }
 
 const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
@@ -41,435 +37,254 @@ const PDFAnnotator: React.FC<PDFAnnotatorProps> = ({
                                                        height = '600px',
                                                        initialAnnotations = [],
                                                    }) => {
-    const {files, dispatch} = useFile();
+    console.log(`PDFAnnotator rendering with fileId: ${fileId}`);
+
+    const {files} = useFile();
     const {showToast} = useToast();
 
     const [loading, setLoading] = useState(true);
-    const [viewer, setViewer] = useState<TsPdfViewer | null>(null);
-    const [annotations, setAnnotations] = useState<PDFAnnotation[]>(initialAnnotations);
-    const [currentPage, setCurrentPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
-    const [scale, setScale] = useState(1.5);
-    const [selectedAnnotation, setSelectedAnnotation] = useState<PDFAnnotation | null>(null);
-    const [annotationMode, setAnnotationMode] = useState<'ink' | 'highlight' | 'square' | 'circle' | 'text' | 'freetext' | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [debugInfo, setDebugInfo] = useState<string[]>([]);
 
+    // Create a unique container ID for this specific instance
+    const containerId = useRef(`pdf-container-${Math.random().toString(36).substring(2)}`);
     const containerRef = useRef<HTMLDivElement>(null);
-    // Generate a unique ID for this instance
-    const instanceId = useRef<string>(`pdf-container-${fileId}-${Date.now()}`);
-    console.log("PDFAnnotator", instanceId, initialAnnotations);
+    const viewerRef = useRef<TsPdfViewer | null>(null);
 
-    // Cleanup function to be called on component unmount
+    // Add debug log function
+    const addDebugLog = (message: string) => {
+        console.log(`PDFAnnotator Debug: ${message}`);
+        setDebugInfo(prev => [...prev, message]);
+    };
+
+    // Reset when fileId changes
     useEffect(() => {
-        return () => {
-            // Close the viewer if it exists
-            if (viewer) {
-                try {
-                    console.log('Closing PDF viewer on unmount');
-                    viewer.closePdfAsync().catch(console.error);
-                } catch (err) {
-                    console.warn('Error closing PDF viewer during unmount:', err);
-                }
+        setLoading(true);
+        setError(null);
+        setDebugInfo([`New fileId received: ${fileId}`]);
+
+        // Clean up previous viewer if needed
+        if (viewerRef.current) {
+            addDebugLog('Cleaning up previous viewer');
+            try {
+                viewerRef.current.closePdfAsync().catch(e => {
+                    console.error('Error closing previous viewer:', e);
+                });
+                viewerRef.current = null;
+            } catch (err) {
+                console.error('Error in cleanup:', err);
             }
-        };
-    }, [viewer]);
+        }
+    }, [fileId]);
 
     // Initialize PDF viewer
     useEffect(() => {
-        if (!containerRef.current || !fileId) return;
-
-        // Get the file
-        const file = files.find(f => f.id === fileId);
-        if (!file) {
-            showToast('File not found', 'error');
-            setLoading(false);
-            setError('File not found');
+        if (!fileId) {
+            addDebugLog('No fileId provided');
             return;
         }
 
+        addDebugLog(`Starting initialization for fileId: ${fileId}`);
 
-
-        // Check if it's a PDF
-        if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-            showToast('Not a PDF file', 'error');
-            setLoading(false);
-            setError('Not a PDF file');
-            return;
-        }
-
-        // Set up the options for the viewer
-        const options: TsPdfViewerOptions = {
-            containerSelector: `#${instanceId.current}`,
-            userName: 'HR ToolKit User',
-            enableHistory: true,
-            disableOpenAction: true,
-            disableLoadAction: readOnly,
-            disableSaveAction: readOnly,
-            disableCloseAction: false,
-            disableRotation: false,
-            workerSource: window.pdfjsWorkerSrc, // Explicitly provide the worker source
-        };
-
-        // Create a variable to track if the component is still mounted
+        // Store current mountState for cancellation
         let isMounted = true;
 
-        try {
-            console.log('Creating TsPdfViewer with options:', options);
-            let pdfViewer: TsPdfViewer | null = null;
+        const initViewer = async () => {
+            try {
+                addDebugLog('Checking for file');
 
-            // Small delay to ensure DOM is fully ready
-            setTimeout(() => {
-                if (!isMounted) return;
+                // Get the file
+                const file = files.find(f => f.id === fileId);
+                if (!file) {
+                    addDebugLog(`File not found with id: ${fileId}`);
+                    setError('File not found');
+                    setLoading(false);
+                    return;
+                }
+
+                addDebugLog(`Found file: ${file.name}`);
+
+                // Check if it's a PDF
+                if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+                    addDebugLog(`Not a PDF file: ${file.type}, ${file.name}`);
+                    setError('Not a PDF file');
+                    setLoading(false);
+                    return;
+                }
+
+                // Wait for DOM to be ready
+                await new Promise(resolve => setTimeout(resolve, 500));
+                if (!isMounted) {
+                    addDebugLog('Component unmounted during initialization');
+                    return;
+                }
+
+                // Get the container element
+                addDebugLog(`Looking for container with id: ${containerId.current}`);
+                const containerElement = document.getElementById(containerId.current);
+                if (!containerElement) {
+                    addDebugLog('Container element not found in DOM');
+                    setError('Container element not found');
+                    setLoading(false);
+                    return;
+                }
+
+                addDebugLog('Container found, creating viewer options');
+
+                // Set up viewer options
+                const options: TsPdfViewerOptions = {
+                    containerSelector: `#${containerId.current}`,
+                    userName: 'HR ToolKit User',
+                    enableHistory: true,
+                    disableOpenAction: true,
+                    disableLoadAction: readOnly,
+                    disableSaveAction: readOnly,
+                    disableCloseAction: false,
+                    disableRotation: false,
+                    workerSource: window.pdfjsWorkerSrc,
+                };
+
+                addDebugLog('Creating PDF viewer');
 
                 try {
                     // Create a new viewer instance
-                    pdfViewer = new TsPdfViewer(options);
+                    const pdfViewer = new TsPdfViewer(options);
+                    addDebugLog('Viewer created successfully');
 
-                    // If we have the content as ArrayBuffer, convert to Uint8Array
+                    // Prepare PDF data
+                    addDebugLog('Preparing PDF data');
                     let pdfData: Uint8Array;
+
                     if (file.content instanceof ArrayBuffer) {
-                        try {
-                            // Create a new copy of the ArrayBuffer to prevent detached buffer issues
-                            const contentCopy = file.content.slice(0);
-                            pdfData = new Uint8Array(contentCopy);
-                        } catch (error) {
-                            console.error('Error creating Uint8Array from ArrayBuffer:', error);
-                            throw new Error('Failed to process PDF data: ' + error.message);
-                        }
+                        addDebugLog('Content is ArrayBuffer, converting to Uint8Array');
+                        const contentCopy = file.content.slice(0);
+                        pdfData = new Uint8Array(contentCopy);
                     } else {
-                        // Handle string content (unlikely for PDF but just in case)
+                        addDebugLog('Content is string, encoding to Uint8Array');
                         const encoder = new TextEncoder();
                         pdfData = encoder.encode(file.content as string);
                     }
 
+                    addDebugLog(`PDF data prepared, length: ${pdfData.length}`);
+
+                    // Store viewer in ref
+                    viewerRef.current = pdfViewer;
+
                     // Open the PDF
-                    console.log('Opening PDF...');
-                    pdfViewer.openPdfAsync(pdfData)
-                        .then(() => {
-                            if (!isMounted) return;
+                    addDebugLog('Opening PDF...');
+                    await pdfViewer.openPdfAsync(pdfData);
 
-                            console.log('PDF opened successfully');
-                            setViewer(pdfViewer);
-                            setTotalPages(pdfViewer!.pagesCount);
-                            setLoading(false);
-                            setError(null);
-
-                            // Import initial annotations if any
-                            if (initialAnnotations?.length) {
-                                console.log('Importing initial annotations:', initialAnnotations.length);
-                                importAnnotations(initialAnnotations);
-                            }
-                        })
-                        .catch((error) => {
-                            if (!isMounted) return;
-
-                            console.error('Error opening PDF:', error);
-                            showToast('Failed to open PDF: ' + error.message, 'error');
-                            setLoading(false);
-                            setError('Failed to open PDF: ' + error.message);
-                        });
-                } catch (error: any) {
-                    if (!isMounted) return;
-
-                    console.error('Error initializing PDF viewer:', error);
-                    showToast('Failed to initialize PDF viewer: ' + error.message, 'error');
-                    setLoading(false);
-                    setError('Failed to initialize PDF viewer: ' + error.message);
-                }
-            }, 50);
-
-            return () => {
-                // Mark component as unmounted
-                isMounted = false;
-
-                // Cleanup
-                if (pdfViewer) {
-                    console.log('Closing PDF viewer');
-                    try {
+                    if (!isMounted) {
+                        addDebugLog('Component unmounted after opening PDF');
                         pdfViewer.closePdfAsync().catch(console.error);
-                        setViewer(null);
-                    } catch (err) {
-                        console.warn('Error during PDF viewer cleanup:', err);
+                        return;
+                    }
+
+                    addDebugLog('PDF opened successfully');
+
+                    // Update state
+                    setLoading(false);
+
+                } catch (error: any) {
+                    addDebugLog(`Error creating/opening PDF viewer: ${error.message}`);
+                    setError(`Failed to initialize PDF viewer: ${error.message}`);
+                    setLoading(false);
+
+                    if (viewerRef.current) {
+                        try {
+                            viewerRef.current.closePdfAsync().catch(console.error);
+                            viewerRef.current = null;
+                        } catch (e) {
+                            console.error('Error closing viewer after failed init:', e);
+                        }
                     }
                 }
-            };
-        } catch (error: any) {
-            console.error('Error initializing PDF viewer:', error);
-            showToast('Failed to initialize PDF viewer: ' + error.message, 'error');
-            setLoading(false);
-            setError('Failed to initialize PDF viewer: ' + error.message);
-            return () => {
-                isMounted = false;
-            };
-        }
-    }, [fileId, files, showToast, readOnly, initialAnnotations]);
 
-    // Update annotations state from viewer
-    const updateAnnotationsState = async () => {
-        if (!viewer) return;
-
-        try {
-            const currentAnnotations = await viewer.exportAnnotationsAsync();
-            setAnnotations(currentAnnotations);
-        } catch (error) {
-            console.error('Error getting annotations:', error);
-        }
-    };
-
-    // Import annotations into the viewer
-    const importAnnotations = (annotations: PDFAnnotation[]) => {
-        if (!viewer) return;
-        console.log('Importing initial annotations:', annotations);
-
-        try {
-            // Clear existing annotations first
-            viewer.deleteAllAnnotations();
-
-            // Import each annotation
-            annotations.forEach(async (annotation) => {
-                try {
-                    await viewer.importAnnotationsAsync(annotation);
-                } catch (error) {
-                    console.error('Error importing annotation:', error, annotation);
-                }
-            });
-
-            updateAnnotationsState();
-        } catch (error) {
-            console.error('Error importing annotations:', error);
-            showToast('Failed to import annotations', 'error');
-        }
-    };
-
-    // Set the annotation mode
-    const setAnnotationTool = (mode: 'ink' | 'highlight' | 'square' | 'circle' | 'text' | 'freetext' | null) => {
-        if (!viewer) return;
-
-        setAnnotationMode(mode);
-
-        if (mode === null) {
-            viewer.setViewerMode('text-selection'); // Default mode
-            return;
-        }
-
-        viewer.setViewerMode('annotation');
-
-        switch (mode) {
-            case 'ink':
-                viewer.setAnnotationMode('ink');
-                break;
-            case 'highlight':
-                viewer.setAnnotationMode('highlight');
-                break;
-            case 'square':
-                viewer.setAnnotationMode('square');
-                break;
-            case 'circle':
-                viewer.setAnnotationMode('circle');
-                break;
-            case 'text':
-                viewer.setAnnotationMode('text');
-                break;
-            case 'freetext':
-                viewer.setAnnotationMode('freetext');
-                break;
-            default:
-                viewer.setViewerMode('text-selection');
-        }
-    };
-
-    // Handle page navigation
-    const goToPage = (pageNumber: number) => {
-        if (!viewer) return;
-
-        if (pageNumber >= 1 && pageNumber <= totalPages) {
-            viewer.goToPage(pageNumber);
-            setCurrentPage(pageNumber);
-        }
-    };
-
-    // Handle zoom
-    const handleZoom = (zoomIn: boolean) => {
-        if (!viewer) return;
-
-        if (zoomIn) {
-            viewer.onZoomInClick();
-        } else {
-            viewer.onZoomOutClick();
-        }
-
-        // Update scale state (approximate as we don't have direct access to the scale value)
-        setScale(prevScale => {
-            const newScale = zoomIn ? prevScale + 0.2 : prevScale - 0.2;
-            return Math.max(0.5, Math.min(3, newScale));
-        });
-    };
-
-    // Save annotations
-    const handleSave = async () => {
-        if (!viewer) return;
-
-        try {
-            const currentAnnotations = await viewer.exportAnnotationsAsync()
-            // const currentAnnotations = viewer.getAllAnnotations();
-
-            if (onSave) {
-                onSave(currentAnnotations, fileId);
-            } else {
-                // Default implementation to save annotations to file metadata
-                dispatch({
-                    type: 'UPDATE_FILE_METADATA', payload: {
-                        id: fileId, metadata: {
-                            annotations: currentAnnotations, lastModified: Date.now(),
-                        },
-                    },
-                });
-
-                showToast('Annotations saved successfully', 'success');
+            } catch (err: any) {
+                addDebugLog(`Unexpected error: ${err.message}`);
+                setError(`An unexpected error occurred: ${err.message}`);
+                setLoading(false);
             }
-        } catch (error) {
-            console.error('Error saving annotations:', error);
-            showToast('Failed to save annotations', 'error');
-        }
-    };
+        };
 
-    // Delete selected annotation
-    const handleDeleteAnnotation = () => {
-        if (!viewer || !selectedAnnotation) return;
+        initViewer();
 
-        try {
-            viewer.deleteAnnotation(selectedAnnotation);
-            setSelectedAnnotation(null);
-            updateAnnotationsState();
-        } catch (error) {
-            console.error('Error deleting annotation:', error);
-            showToast('Failed to delete annotation', 'error');
-        }
-    };
+        return () => {
+            isMounted = false;
+            addDebugLog('Initialization useEffect cleanup');
+        };
+    }, [fileId, files, readOnly, showToast]);
 
-    // Navigation helpers
-    const handlePreviousPage = () => goToPage(currentPage - 1);
-    const handleNextPage = () => goToPage(currentPage + 1);
-    const handleZoomIn = () => handleZoom(true);
-    const handleZoomOut = () => handleZoom(false);
-    const handleSaveAnnotations = () => handleSave();
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            console.log('PDFAnnotator unmounting');
+            if (viewerRef.current) {
+                try {
+                    viewerRef.current.closePdfAsync().catch(console.error);
+                } catch (err) {
+                    console.error('Error during unmount cleanup:', err);
+                }
+            }
+        };
+    }, []);
 
     if (error) {
-        return (<Card className="pdf-annotator-container" style={{height}}>
-            <div className="pdf-error-container">
-                <p className="error-message">{error}</p>
-            </div>
-        </Card>);
+        return (
+            <Card className="pdf-annotator-container" style={{height}}>
+                <div className="pdf-error-container">
+                    <p className="error-message">{error}</p>
+                    <div className="debug-info">
+                        <h4>Debug Info:</h4>
+                        <ul>
+                            {debugInfo.map((log, i) => (
+                                <li key={i}>{log}</li>
+                            ))}
+                        </ul>
+                    </div>
+                </div>
+            </Card>
+        );
     }
 
     return (
         <div className={className + " pdf-annotator-container h-full"} style={{height, overflow: 'hidden', width: '100%'}}>
-            <div className="pdf-toolbar">
-                {!readOnly && (<div className="annotation-tools bg-black">
-                    <Button
-                        onClick={() => setAnnotationMode(annotationMode === 'highlight' ? null : 'highlight')}
-                        variant={annotationMode === 'highlight' ? 'primary' : 'secondary'}
-                        size="sm"
-                    >
-                        Highlight
-                    </Button>
-                    <Button
-                        onClick={() => setAnnotationMode(annotationMode === 'ink' ? null : 'ink')}
-                        variant={annotationMode === 'ink' ? 'primary' : 'secondary'}
-                        size="sm"
-                    >
-                        Ink
-                    </Button>
-                    <Button
-                        onClick={() => setAnnotationMode(annotationMode === 'square' ? null : 'square')}
-                        variant={annotationMode === 'square' ? 'primary' : 'secondary'}
-                        size="sm"
-                    >
-                        Square
-                    </Button>
-                    <Button
-                        onClick={() => setAnnotationMode(annotationMode === 'circle' ? null : 'circle')}
-                        variant={annotationMode === 'circle' ? 'primary' : 'secondary'}
-                        size="sm"
-                    >
-                        Circle
-                    </Button>
-                    <Button
-                        onClick={() => setAnnotationMode(annotationMode === 'text' ? null : 'text')}
-                        variant={annotationMode === 'text' ? 'primary' : 'secondary'}
-                        size="sm"
-                    >
-                        Text
-                    </Button>
-                    <Button
-                        onClick={() => setAnnotationMode(annotationMode === 'freetext' ? null : 'freetext')}
-                        variant={annotationMode === 'freetext' ? 'primary' : 'secondary'}
-                        size="sm"
-                    >
-                        Free Text
-                    </Button>
-                    {selectedAnnotation && (<Button
-                        onClick={handleDeleteAnnotation}
-                        variant="danger"
-                        size="sm"
-                    >
-                        Delete
-                    </Button>)}
-                </div>)}
-                <div className="navigation-tools">
-                    <Button
-                        onClick={handlePreviousPage}
-                        disabled={currentPage <= 1 || loading}
-                        size="sm"
-                    >
-                        Previous
-                    </Button>
-                    <span className="page-info">
-                        Page {currentPage} of {totalPages}
-                    </span>
-                    <Button
-                        onClick={handleNextPage}
-                        disabled={currentPage >= totalPages || loading}
-                        size="sm"
-                    >
-                        Next
-                    </Button>
-                    <Button
-                        onClick={handleZoomIn}
-                        disabled={loading}
-                        size="sm"
-                    >
-                        Zoom In
-                    </Button>
-                    <Button
-                        onClick={handleZoomOut}
-                        disabled={loading}
-                        size="sm"
-                    >
-                        Zoom Out
-                    </Button>
-                    {onSave && (<Button
-                        onClick={handleSaveAnnotations}
-                        variant="success"
-                        size="sm"
-                        disabled={loading}
-                    >
-                        Save Annotations
-                    </Button>)}
+            {loading && debugInfo.length > 0 && (
+                <div style={{position: 'absolute', top: 0, left: 0, zIndex: 100, background: 'rgba(255,255,255,0.9)', padding: '5px', maxHeight: '200px', overflow: 'auto'}}>
+                    <h4>Debug Info:</h4>
+                    <ul style={{fontSize: '12px', margin: 0, padding: '0 0 0 20px'}}>
+                        {debugInfo.map((log, i) => (
+                            <li key={i}>{log}</li>
+                        ))}
+                    </ul>
                 </div>
-            </div>
+            )}
+
             <div
-                id={instanceId.current}
+                id={containerId.current}
                 ref={containerRef}
-                key={instanceId.current} // Add key to force React to recreate this element
                 className="pdf-content h-full"
                 style={{minHeight: '400px', width: '100%', position: 'relative'}}
             >
-                {loading && (<div className="pdf-loading">
-                    <p>Loading PDF...</p>
-                </div>)}
+                {loading && (
+                    <div className="pdf-loading" style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: 'rgba(255,255,255,0.8)',
+                        zIndex: 10
+                    }}>
+                        <p>Loading PDF... Please wait</p>
+                    </div>
+                )}
             </div>
-        </div>);
+        </div>
+    );
 };
 
 export default PDFAnnotator;
