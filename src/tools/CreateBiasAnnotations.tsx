@@ -61,8 +61,8 @@ export const createBiasAnnotations = async (biasedTerms: any[], file) => {
                             "matrix": [1, 0, 0, 1, 0, 0],
                             "quadPoints": result.quadPoints,
                             "color": [0, 0.5, 0, 0.5],
-                            "strokeWidth": 1,
-                            "strokeDashGap": [2, 0]
+                            "strokeWidth": 2,
+                            "strokeDashGap": [3, 0]
                         });
                     }
                 } else {
