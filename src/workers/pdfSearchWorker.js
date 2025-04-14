@@ -74,7 +74,7 @@ function createRectFromTextObject(textObj, startCharIndex, endCharIndex) {
     const right = left + matchWidth;
     const bottom = f;
 
-    return [left, top, right, bottom];
+    return [left, top + 10, right, bottom + 10];
 }
 
 /**
