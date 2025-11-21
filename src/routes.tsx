@@ -6,17 +6,16 @@ import LoadingPage from './pages/LoadingPage';
 
 // Lazily load tool pages for code splitting
 import JDChecker from './tools/JDChecker';
-import ComingSoonPage from "./pages/ComingSoon";
 
 const ResumeAnonymizer = lazy(() => import('./tools/ResumeAnonymizer'));
-// const DiversePanelPlanner = lazy(() => import('./pages/tools/DiversePanelPlanner'));
-// const LayoffImpactAnalyzer = lazy(() => import('./pages/tools/LayoffImpactAnalyzer'));
-// const BoomerangTalentFinder = lazy(() => import('./pages/tools/BoomerangTalentFinder'));
-// const AIOutreachPersonalizer = lazy(() => import('./pages/tools/AIOutreachPersonalizer'));
-// const InterviewLoadBalancer = lazy(() => import('./pages/tools/InterviewLoadBalancer'));
-// const CandidateExperiencePulse = lazy(() => import('./pages/tools/CandidateExperiencePulse'));
-// const HybridOfficeDayPlanner = lazy(() => import('./pages/tools/HybridOfficeDayPlanner'));
-// const OfferComparator = lazy(() => import('./pages/tools/OfferComparator'));
+const DiversePanelPlanner = lazy(() => import('./tools/DiversePanelPlanner'));
+const LayoffImpactAnalyzer = lazy(() => import('./tools/LayoffImpactAnalyzer'));
+const BoomerangTalentFinder = lazy(() => import('./tools/BoomerangTalentFinder'));
+const AIOutreachPersonalizer = lazy(() => import('./tools/AIOutreachPersonalizer'));
+const InterviewLoadBalancer = lazy(() => import('./tools/InterviewLoadBalancer'));
+const CandidateExperiencePulse = lazy(() => import('./tools/CandidateExperiencePulse'));
+const HybridOfficeDayPlanner = lazy(() => import('./tools/HybridOfficeDayPlanner'));
+const OfferComparator = lazy(() => import('./tools/OfferComparator'));
 // const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
 const AppRoutes = () => {
@@ -39,49 +38,49 @@ const AppRoutes = () => {
                     <Route
                         path="diverse-panel-planner"
                         element={<Suspense fallback={<LoadingPage/>}>
-                            <ComingSoonPage/>
+                            <DiversePanelPlanner/>
                         </Suspense>}
                     />
                     <Route
                         path="layoff-impact-analyzer"
                         element={<Suspense fallback={<LoadingPage/>}>
-                            <ComingSoonPage/>
+                            <LayoffImpactAnalyzer/>
                         </Suspense>}
                     />
                     <Route
                         path="boomerang-talent-finder"
                         element={<Suspense fallback={<LoadingPage/>}>
-                            <ComingSoonPage/>
+                            <BoomerangTalentFinder/>
                         </Suspense>}
                     />
                     <Route
                         path="ai-outreach-personalizer"
                         element={<Suspense fallback={<LoadingPage/>}>
-                            <ComingSoonPage/>
+                            <AIOutreachPersonalizer/>
                         </Suspense>}
                     />
                     <Route
                         path="interview-load-balancer"
                         element={<Suspense fallback={<LoadingPage/>}>
-                            <ComingSoonPage/>
+                            <InterviewLoadBalancer/>
                         </Suspense>}
                     />
                     <Route
                         path="candidate-experience-pulse"
                         element={<Suspense fallback={<LoadingPage/>}>
-                            <ComingSoonPage/>
+                            <CandidateExperiencePulse/>
                         </Suspense>}
                     />
                     <Route
                         path="hybrid-office-day-planner"
                         element={<Suspense fallback={<LoadingPage/>}>
-                            <ComingSoonPage/>
+                            <HybridOfficeDayPlanner/>
                         </Suspense>}
                     />
                     <Route
                         path="offer-comparator"
                         element={<Suspense fallback={<LoadingPage/>}>
-                            <ComingSoonPage/>
+                            <OfferComparator/>
                         </Suspense>}
                     />
                 </Route>
